@@ -2,6 +2,7 @@
 
 <div align="center">
 
+[![GitHub stars](https://img.shields.io/github/stars/boshjerns/Conversation-LLMulator?style=social)](https://github.com/boshjerns/Conversation-LLMulator/stargazers)
 ![Conversation-LLMulator Logo](https://img.shields.io/badge/🤖-Conversation--LLMulator-blue?style=for-the-badge&logo=openai)
 
 **A real-time multi-AI conversation platform where different AI models engage in dynamic discussions**
@@ -411,7 +412,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Made with ❤️ by the Conversation-LLMulator Team**
+**Made with ❤️ by @boshjerns**
 
 ⭐ **Star this repo if you find it useful!** ⭐
 
