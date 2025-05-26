@@ -402,10 +402,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support & Community
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/conversation-llmulator/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/conversation-llmulator/discussions)  
+- 🐛 **Issues**: [GitHub Issues](https://github.com/boshjerns/Conversation-LLMulator/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/boshjerns/Conversation-LLMulator/discussions)  
 - 📧 **Email**: support@conversation-llmulator.com
-- 🐦 **Twitter**: [@ConvLLMulator](https://twitter.com/ConvLLMulator)
+- 🐦 **X (Twitter)**: [@boshjerns](https://twitter.com/boshjerns)
 
 ---
 
