@@ -198,6 +198,213 @@ System Prompt: "You are participating in a multi-AI conversation about: [GOAL]"
 
 ---
 
+## 🔧 Technical Deep Dive
+
+### Frontend Architecture (React + TypeScript)
+
+#### Component Structure
+```typescript
+App.tsx (Main Component)
+├── Header Section
+│   ├── Title & Logo
+│   └── Settings Button
+├── Control Panel
+│   ├── Company Selector (Multi-select)
+│   ├── Model Selector (Filtered by company)
+│   ├── Initial Prompt Input
+│   └── Start/Stop Button
+├── Chat Messages Area
+│   ├── Message Cards (Color-coded by AI)
+│   ├── Thinking Indicators
+│   └── Auto-scroll to Bottom
+└── Settings Dialog
+    └── API Key Configuration
+```
+
+#### State Management
+- **React Hooks**: useState, useEffect, useRef for local state
+- **Socket Instance**: Persistent WebSocket connection
+- **Message History**: Array of message objects with metadata
+- **Session Management**: LocalStorage for session persistence
+
+#### Theming System
+```typescript
+// Color Palette by AI Provider
+OpenAI Models: Emerald shades (#059669 to #065F46)
+Google Models: Blue shades (#2563EB to #1E40AF)
+Anthropic Models: Orange shades (#EA580C to #9A3412)
+
+// Base Theme: Minimal design with Cool Gray palette
+Background: #F3F4F6 (Cool Gray 100)
+Text Primary: #1F2937 (Cool Gray 800)
+Text Secondary: #6B7280 (Cool Gray 500)
+```
+
+### Backend Architecture (Node.js + Express)
+
+#### Core Classes
+
+**1. AIModelManager**
+```javascript
+class AIModelManager {
+  - setApiKey(provider, apiKey, userId)    // Encrypt and store API keys
+  - getApiKey(provider, userId)            // Retrieve decrypted keys
+  - generateResponse(modelId, messages)    // Route to appropriate AI
+  - generateOpenAIResponse()               // OpenAI-specific handling
+  - generateGeminiResponse()               // Google-specific handling
+  - generateClaudeResponse()               // Anthropic-specific handling
+}
+```
+
+**2. ConversationManager**
+```javascript
+class ConversationManager {
+  - createConversation(userId, participants)  // Initialize new chat
+  - addMessage(conversationId, modelId, content) // Add to history
+  - getConversationHistory(conversationId)    // Retrieve messages
+  - stopConversation(conversationId)          // End active chat
+}
+```
+
+#### Data Models
+
+**Conversation Object**
+```javascript
+{
+  id: UUID,                    // Unique conversation identifier
+  userId: string,              // Session ID for user
+  participants: string[],      // Array of AI model IDs
+  messages: Message[],         // Full message history
+  initialGoal: string,         // First user prompt (conversation topic)
+  currentTurn: number,         // Track whose turn it is
+  isActive: boolean,           // Conversation state
+  emptyResponseCount: number   // Safety counter for empty responses
+}
+```
+
+**Message Object**
+```javascript
+{
+  id: UUID,                    // Unique message identifier
+  provider: string,            // Model ID or 'user'
+  content: string,             // Message text
+  timestamp: ISO string,       // When message was created
+  role: 'user' | 'ai'         // Message sender type
+}
+```
+
+### AI Integration Details
+
+#### OpenAI Integration
+```javascript
+// Uses chat.completions API with system message
+const systemMessage = {
+  role: 'system',
+  content: 'You are participating in a multi-AI conversation...'
+};
+// Maintains conversation context through message history
+```
+
+#### Google Gemini Integration
+```javascript
+// Uses generative model with conversation context
+// Builds comprehensive prompt including:
+- Initial conversation goal
+- Full conversation history
+- Response instructions
+// Special handling for model-specific quirks
+```
+
+#### Anthropic Claude Integration
+```javascript
+// Requires alternating user/assistant messages
+// Message preprocessing to ensure API compliance:
+- Merges consecutive same-role messages
+- Ensures conversation ends with user message
+- Maintains full context while meeting API requirements
+```
+
+### Real-time Communication Flow
+
+#### Socket.IO Event Architecture
+```
+┌─────────────┐                    ┌─────────────┐
+│   Client    │                    │   Server    │
+└─────┬───────┘                    └──────┬──────┘
+      │                                    │
+      │────── setApiKey ──────────────────>│
+      │<───── apiKeySet ───────────────────│
+      │                                    │
+      │────── startConversation ──────────>│
+      │<───── conversationStarted ─────────│
+      │<───── newMessage (user) ───────────│
+      │<───── aiThinking ──────────────────│
+      │<───── newMessage (AI 1) ───────────│
+      │<───── aiThinking ──────────────────│
+      │<───── newMessage (AI 2) ───────────│
+      │         ... continues ...          │
+      │<───── conversationEnded ───────────│
+```
+
+### Security Implementation
+
+#### API Key Protection
+```javascript
+// Encryption Flow
+User Input → AES Encryption → Encrypted Storage → File Persistence
+                    ↓
+            Decryption on Use → API Client Initialization
+
+// Storage Structure
+userApiKeys: Map<userId, {
+  openai?: encryptedKey,
+  google?: encryptedKey,
+  anthropic?: encryptedKey
+}>
+```
+
+#### Network Security
+- **Helmet.js**: Security headers (CSP, HSTS, etc.)
+- **CORS**: Restricted to localhost:3000
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **Input Validation**: Message content and API key validation
+
+### Performance Optimizations
+
+#### Frontend Optimizations
+- **Memoization**: Prevent unnecessary re-renders
+- **Virtual Scrolling**: Efficient message list rendering
+- **Debounced Updates**: Reduce state update frequency
+- **Lazy Loading**: Load components as needed
+
+#### Backend Optimizations
+- **In-Memory Storage**: Fast conversation access
+- **Message Windowing**: Send only relevant history (last 20 messages)
+- **Async Processing**: Non-blocking AI API calls
+- **Connection Pooling**: Reuse AI client instances
+
+### Conversation Intelligence
+
+#### Turn-Taking Algorithm
+```javascript
+1. User provides initial prompt
+2. Add user message to history
+3. For each AI in participants:
+   a. Send full conversation context
+   b. Generate response with appropriate length
+   c. Broadcast to all connected clients
+   d. Add to conversation history
+4. Repeat until MAX_MESSAGES or user stops
+```
+
+#### Context Preservation Strategy
+- **Goal Memory**: Initial prompt saved and referenced
+- **Speaker Tracking**: Each message tagged with provider
+- **History Window**: Last 20 messages for context
+- **Adaptive Prompting**: Length guidelines based on context
+
+---
+
 ## 📖 Documentation
 
 ### Configuration

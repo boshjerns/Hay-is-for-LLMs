@@ -154,8 +154,8 @@ class AIModelManager {
       'gemini-2.5-flash-preview-05-20': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.5-flash-preview-05-20' },
       'gemini-2.5-pro-preview-05-06': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.5-pro-preview-05-06' },
       'claude-3-opus': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-opus-20240229' },
-      'claude-3-sonnet': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-sonnet-20240229' },
-      'claude-3-haiku': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-haiku-20240307' }
+      'claude-3-sonnet': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+      'claude-3-haiku': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-5-haiku-20241022' }
     };
 
     const modelConfig = modelMapping[modelId];
@@ -266,26 +266,123 @@ class AIModelManager {
   }
 
   async generateClaudeResponse(messages, model = "claude-3-sonnet-20240229") {
+    console.log('[Claude Generate RF] Model parameter received:', model);
+
     // Find the initial prompt to maintain conversation memory
     const initialPrompt = messages.find(msg => msg.provider === 'user')?.content || 'General discussion';
     
     // Create a system message for Claude
     const systemMessage = `You are participating in a multi-AI conversation about: "${initialPrompt}"\n\nRespond naturally with appropriate length - short (1-2 sentences) for simple responses, medium (2-4 sentences) for explanations, or longer (4-6 sentences) if the topic requires depth. Always stay conversational and respond directly to what was just said while keeping the original topic in mind.`;
     
-    // Format messages for Claude
-    const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'ai' ? 'assistant' : msg.role,
-      content: msg.content
-    }));
+    // Process messages to ensure alternating roles for Claude API
+    const processedMessages = [];
+    if (messages.length > 0) {
+      // Filter out placeholder messages first
+      const filteredMessages = messages.filter(msg => 
+        msg.content && !msg.content.includes("(Previous turn provided no text output)")
+      );
+      
+      console.log('[Claude Debug] Filtered messages:', filteredMessages.length, 'from original:', messages.length);
+      
+      if (filteredMessages.length > 0) {
+        // Add the first message directly
+        processedMessages.push({
+          role: filteredMessages[0].role === 'ai' ? 'assistant' : filteredMessages[0].role,
+          content: filteredMessages[0].content
+        });
+
+        for (let i = 1; i < filteredMessages.length; i++) {
+          const currentMessage = filteredMessages[i];
+          const lastProcessedMessage = processedMessages[processedMessages.length - 1];
+          
+          const currentRole = currentMessage.role === 'ai' ? 'assistant' : currentMessage.role;
+          
+          if (currentRole === 'assistant' && lastProcessedMessage.role === 'assistant') {
+            // Merge consecutive assistant messages
+            lastProcessedMessage.content += `\n\n${currentMessage.content}`; 
+          } else if (currentRole === 'user' && lastProcessedMessage.role === 'user') {
+            // Merge consecutive user messages
+            lastProcessedMessage.content += `\n\n${currentMessage.content}`;
+          } else {
+            processedMessages.push({
+              role: currentRole,
+              content: currentMessage.content
+            });
+          }
+        }
+      }
+    }
     
-    const response = await this.models.claude.messages.create({
-      model: model,
-      max_tokens: 300, // Increased to allow for longer responses when needed
-      system: systemMessage,
-      messages: formattedMessages
-    });
+    // If we have no valid messages after filtering, add a user prompt
+    if (processedMessages.length === 0) {
+      console.log('[Claude Debug] No valid messages after processing, adding default user message');
+      processedMessages.push({
+        role: 'user',
+        content: initialPrompt || 'Hello'
+      });
+    }
     
-    return response.content[0].text;
+    // Ensure we always end with a user message if the last message is from assistant
+    if (processedMessages.length > 0 && processedMessages[processedMessages.length - 1].role === 'assistant') {
+      console.log('[Claude Debug] Last message is assistant, adding continuation prompt');
+      processedMessages.push({
+        role: 'user',
+        content: 'Please continue the conversation.'
+      });
+    }
+    
+    // Format messages for Claude using the processed list
+    const formattedMessages = processedMessages; // Already in the correct format
+
+    console.log('[Claude Request Debug] System Message:', systemMessage);
+    console.log('[Claude Request Debug] Formatted Messages:', JSON.stringify(formattedMessages, null, 2));
+    console.log('[Claude Debug] Message count:', formattedMessages.length);
+    console.log('[Claude Debug] Message roles:', formattedMessages.map(m => m.role).join(' -> '));
+
+    // Existing debug logs for the client instance
+    console.log('[Claude Debug] this.models.claude:', this.models.claude);
+    if (this.models.claude) {
+      console.log('[Claude Debug] typeof this.models.claude.messages:', typeof this.models.claude.messages);
+      console.log('[Claude Debug] this.models.claude.messages:', this.models.claude.messages);
+      console.log('[Claude Debug] Object.keys(this.models.claude):', Object.keys(this.models.claude));
+    }
+
+    try {
+      console.log('[Claude API Call] Making request with model:', model);
+      const response = await this.models.claude.messages.create({
+        model: model,
+        max_tokens: 1024, // Increased from 300
+        system: systemMessage,
+        messages: formattedMessages,
+        temperature: 0.7
+      });
+      
+      console.log('[Claude Response Debug] Full API Response:', JSON.stringify(response, null, 2)); // Log the full response
+
+      // It's good practice to check if content exists and is not empty
+      if (response && response.content && response.content.length > 0) {
+        // Handle different content types
+        const textContent = response.content.find(c => c.type === 'text');
+        if (textContent && textContent.text) {
+          console.log('[Claude Success] Generated response length:', textContent.text.length);
+          return textContent.text;
+        }
+        
+        // If no text content found, log what we got
+        console.error('[Claude Error] No text content found in response. Content types:', response.content.map(c => c.type));
+      }
+      
+      console.error('[Claude Error] Unexpected response structure or empty content:', JSON.stringify(response, null, 2));
+      throw new Error('Anthropic response content was empty or not in the expected text format.');
+      
+    } catch (error) {
+      console.error('[Claude API Error] Full error details:', error);
+      if (error.response) {
+        console.error('[Claude API Error] Response data:', error.response.data);
+        console.error('[Claude API Error] Response status:', error.response.status);
+      }
+      throw error;
+    }
   }
 }
 
@@ -329,8 +426,9 @@ class ConversationManager {
         console.log(`🎯 Set conversation goal: "${content}"`);
       }
       
-      console.log(`📝 Adding message - Model: ${modelId}, Content: "${content}"`);
+      console.log(`[ADD_MESSAGE_PRE] Conversation ${conversationId} - Messages count: ${conversation.messages.length}`);
       conversation.messages.push(message);
+      console.log(`[ADD_MESSAGE_POST] Conversation ${conversationId} - Added: "${content?.substring(0,30)}...". New messages count: ${conversation.messages.length}. Last message: ${conversation.messages[conversation.messages.length-1]?.content?.substring(0,30)}...`);
       return message;
     }
     return null;
@@ -470,86 +568,86 @@ async function continueConversationChain(conversationId, socket) {
   console.log(`🔄 Conversation Chain - Turn ${conversation.currentTurn}, Model: ${currentModelId}`);
   
   try {
-    // Get conversation history for context
-    // Pass the full history for better context, up to a reasonable limit
-    const history = conversationManager.getConversationHistory(conversationId, 20); // Increased history limit
-    
+    const history = conversationManager.getConversationHistory(conversationId, 20);
+    console.log(`[PRE_GENERATE_RESPONSE] ConvID: ${conversationId}, Turn: ${conversation.currentTurn}, Model: ${currentModelId}`);
+    console.log(`[PRE_GENERATE_RESPONSE] Current conversation.messages length: ${conversation.messages.length}`);
+    if (conversation.messages.length > 0) {
+      console.log(`[PRE_GENERATE_RESPONSE] Last message in conversation.messages: ${conversation.messages[conversation.messages.length -1].provider} - \"${conversation.messages[conversation.messages.length -1].content?.substring(0,50)}...\"`);
+    }
+    console.log(`[PRE_GENERATE_RESPONSE] History to be sent (length ${history.length}):`, history.map(h => `${h.provider} (${h.role}): ${h.content?.substring(0, 50)}...`));
     console.log(`📚 Conversation History (${history.length} messages):`, history.map(h => `${h.provider} (${h.role}): ${h.content?.substring(0, 50)}...`));
-    
     socket.emit('aiThinking', { provider: currentModelId });
     
-    // Generate response from current AI model
-    const response = await aiManager.generateResponse(
+    const responseText = await aiManager.generateResponse(
       currentModelId,
-      history, // Pass the history
+      history,
       conversation.userId
     );
     
-    console.log(`✅ Generated response from ${currentModelId}: "${response?.substring(0, 100)}..."`);
+    console.log(`✅ Generated response from ${currentModelId}: \"${responseText?.substring(0, 100)}...\"`);
     
-    // Check if response is valid and not empty
-    if (!response || response.trim().length === 0) {
-      console.log(`⚠️ Empty response from ${currentModelId}, skipping...`);
+    if (!responseText || responseText.trim().length === 0) { 
+      console.log(`⚠️ Empty or whitespace-only response from ${currentModelId}, adding placeholder.`);
+      conversationManager.addMessage(conversationId, currentModelId, "(Previous turn provided no text output)"); // Changed placeholder
       conversation.emptyResponseCount++;
-      
-      // If we get too many empty responses, stop the conversation
       if (conversation.emptyResponseCount >= 5) {
         console.log(`🛑 Too many empty responses (${conversation.emptyResponseCount}), ending conversation`);
         conversation.isActive = false;
         socket.emit('conversationEnded', { conversationId, reason: 'Too many empty responses' });
         return;
       }
-      
-      // Skip to next model
       conversation.currentTurn++;
       setTimeout(() => {
         const currentConversation = conversationManager.getConversation(conversationId);
         if (currentConversation && currentConversation.isActive) {
           continueConversationChain(conversationId, socket);
         }
-      }, 1000);
+      }, 1500); // Increased delay to 1.5 seconds
       return;
     }
     
-    // Reset empty response counter on successful response
     conversation.emptyResponseCount = 0;
-    
-    // Add the response to conversation
-    const message = conversationManager.addMessage(conversationId, currentModelId, response);
-    
+    const message = conversationManager.addMessage(conversationId, currentModelId, responseText);
     socket.emit('newMessage', message);
     
-    // Move to next turn
     conversation.currentTurn++;
-    
-    // Continue the chain after a short delay
     setTimeout(() => {
-      // Double-check conversation is still active before continuing
       const currentConversation = conversationManager.getConversation(conversationId);
-      if (currentConversation && currentConversation.isActive && currentConversation.messages.length < 30) { // Increased overall conversation limit
+      if (currentConversation && currentConversation.isActive && currentConversation.messages.length < 30) {
         continueConversationChain(conversationId, socket);
       } else if (currentConversation && currentConversation.isActive) {
-        // Conversation reached message limit
         currentConversation.isActive = false;
         socket.emit('conversationEnded', { conversationId, reason: 'Message limit reached' });
       }
     }, 2000);
     
   } catch (error) {
-    console.error('Error in conversation chain:', error);
-    socket.emit('error', { 
-      message: `Error with ${currentModelId}: ${error.message}`,
-      provider: currentModelId 
-    });
+    console.error(`Error in conversation chain with ${currentModelId}:`, error);
     
-    // Skip to next model on error
+    if (error.message === 'Anthropic response content was empty or not in the expected text format.') {
+      console.log(`⚠️ Anthropic model ${currentModelId} returned empty content, adding placeholder.`);
+      conversationManager.addMessage(conversationId, currentModelId, "(Previous turn provided no text output)"); // Changed placeholder
+      conversation.emptyResponseCount++;
+      if (conversation.emptyResponseCount >= 5) {
+        console.log(`🛑 Too many empty/failed responses (${conversation.emptyResponseCount}), ending conversation`);
+        conversation.isActive = false;
+        socket.emit('conversationEnded', { conversationId, reason: 'Too many empty/failed responses' });
+        return;
+      }
+    } else {
+      socket.emit('error', { 
+        message: `Error with ${currentModelId}: ${error.message}`,
+        provider: currentModelId 
+      });
+    }
+    
     conversation.currentTurn++;
     setTimeout(() => {
       const currentConversation = conversationManager.getConversation(conversationId);
       if (currentConversation && currentConversation.isActive) {
         continueConversationChain(conversationId, socket);
       }
-    }, 1000);
+    }, 1500); // Increased delay to 1.5 seconds
   }
 }
 
@@ -559,6 +657,28 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+const httpServer = server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`Received ${signal}. Closing http server.`);
+  httpServer.close(() => {
+    console.log('Http server closed.');
+    // Close other resources like database connections if any
+    process.exit(0);
+  });
+
+  // Force close server after 5 seconds if it hasn't closed yet
+  setTimeout(() => {
+    console.error('Http server did not close in time, forcing exit.');
+    process.exit(1);
+  }, 5000);
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGUSR2', () => { // Nodemon specific signal for restart
+  gracefulShutdown('SIGUSR2');
 }); 

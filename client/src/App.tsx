@@ -291,17 +291,17 @@ function App() {
       localStorage.setItem('multiAiChatSessionId', storedSessionId);
     }
     
-    const newSocket = io('http://localhost:5000', {
+    const newSocketInstance = io('http://localhost:5000', {
       query: { sessionId: storedSessionId }
     });
-    setSocket(newSocket);
+    setSocket(newSocketInstance);
 
-    newSocket.on('connect', () => {
+    newSocketInstance.on('connect', () => {
       console.log('Connected to server');
       setSuccess('Connected to server');
     });
 
-    newSocket.on('apiKeySet', ({ provider, success, sessionId: returnedSessionId }) => {
+    newSocketInstance.on('apiKeySet', ({ provider, success, sessionId: returnedSessionId }) => {
       if (success) {
         setSuccess(`${provider} API key set successfully`);
         if (returnedSessionId) {
@@ -312,41 +312,39 @@ function App() {
       }
     });
 
-    newSocket.on('conversationStarted', ({ conversationId }) => {
+    newSocketInstance.on('conversationStarted', ({ conversationId }) => {
       console.log('Conversation started:', conversationId);
       setConversationActive(true);
       setCurrentConversationId(conversationId);
     });
 
-    newSocket.on('newMessage', (message: Message) => {
+    newSocketInstance.on('newMessage', (message: Message) => {
       setMessages(prev => [...prev, message]);
       setThinkingModel(null);
     });
 
-    newSocket.on('aiThinking', ({ provider }) => {
+    newSocketInstance.on('aiThinking', ({ provider }) => {
       setThinkingModel(provider);
     });
 
-    newSocket.on('conversationEnded', ({ reason }) => {
+    newSocketInstance.on('conversationEnded', ({ reason }) => {
       setConversationActive(false);
       setThinkingModel(null);
       setCurrentConversationId(null);
       setSuccess(reason ? `Conversation ended: ${reason}` : 'Conversation ended');
     });
 
-    newSocket.on('error', ({ message, provider }) => {
+    newSocketInstance.on('error', ({ message, provider }) => {
       setError(`Error${provider ? ` with ${provider}` : ''}: ${message}`);
       setThinkingModel(null);
     });
 
     return () => {
-      if (socket && currentConversationId) {
-        socket.emit('stopConversation', { conversationId: currentConversationId });
-      }
-      if (socket) socket.close();
+      newSocketInstance.close();
+      console.log('Socket connection closed');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps 
-}, [currentConversationId, socket]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
