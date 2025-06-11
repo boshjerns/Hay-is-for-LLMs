@@ -8,7 +8,31 @@ const CryptoJS = require('crypto-js');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+
+// Try loading .env from multiple locations
+const envPaths = [
+  path.join(__dirname, '.env'),           // server/.env
+  path.join(__dirname, '..', '.env'),     // root/.env
+  '.env'                                  // current directory
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  try {
+    const result = require('dotenv').config({ path: envPath });
+    if (!result.error) {
+      console.log(`✅ Loaded .env from: ${envPath}`);
+      envLoaded = true;
+      break;
+    }
+  } catch (error) {
+    // Continue to next path
+  }
+}
+
+if (!envLoaded) {
+  console.log('⚠️  No .env file found in any of the expected locations');
+}
 
 const OpenAI = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -42,33 +66,33 @@ app.use(express.json());
 // In-memory storage for encrypted API keys (in production, use a proper database)
 const userApiKeys = new Map();
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-secret-encryption-key-change-this';
-const API_KEYS_FILE = path.join(__dirname, 'api_keys.json');
 
-// Load API keys from file on startup
+// Environment variable API keys (primary option) - clean any whitespace/newlines
+const ENV_API_KEYS = {
+  openai: process.env.OPENAI_API_KEY?.trim().replace(/\s+/g, ''),
+  google: process.env.GOOGLE_API_KEY?.trim().replace(/\s+/g, ''),
+  anthropic: process.env.ANTHROPIC_API_KEY?.trim().replace(/\s+/g, '')
+};
+
+// Load API keys from file on startup (for user-provided keys persistence)
 function loadApiKeys() {
-  try {
-    if (fs.existsSync(API_KEYS_FILE)) {
-      const data = fs.readFileSync(API_KEYS_FILE, 'utf8');
-      const savedKeys = JSON.parse(data);
-      for (const [userId, keys] of Object.entries(savedKeys)) {
-        userApiKeys.set(userId, keys);
-      }
-      console.log(`📂 Loaded API keys for ${Object.keys(savedKeys).length} users`);
-    }
-  } catch (error) {
-    console.error('Error loading API keys:', error);
+  // Check which environment variables are available
+  console.log('🔍 ENVIRONMENT DEBUG:');
+  console.log('  OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `Found (${process.env.OPENAI_API_KEY.substring(0, 10)}...)` : 'Not found');
+  console.log('  GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? `Found (${process.env.GOOGLE_API_KEY.substring(0, 10)}...)` : 'Not found');
+  console.log('  ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? `Found (${process.env.ANTHROPIC_API_KEY.substring(0, 10)}...)` : 'Not found');
+  
+  const envKeysAvailable = Object.entries(ENV_API_KEYS)
+    .filter(([key, value]) => value)
+    .map(([key]) => key);
+  
+  if (envKeysAvailable.length > 0) {
+    console.log(`🌍 Environment API keys found for: ${envKeysAvailable.join(', ')}`);
+  } else {
+    console.log(`⚠️  No environment API keys found.`);
   }
-}
-
-// Save API keys to file
-function saveApiKeys() {
-  try {
-    const keysObject = Object.fromEntries(userApiKeys);
-    fs.writeFileSync(API_KEYS_FILE, JSON.stringify(keysObject, null, 2));
-    console.log(`💾 Saved API keys to file`);
-  } catch (error) {
-    console.error('Error saving API keys:', error);
-  }
+  
+  console.log(`🔑 API Key system ready - env vars first, then user input through UI`);
 }
 
 // Load keys on startup
@@ -103,9 +127,6 @@ class AIModelManager {
     
     userApiKeys.get(userId)[provider] = encryptedKey;
     
-    // Save to file for persistence
-    saveApiKeys();
-    
     // Initialize the model client
     this.initializeModel(provider, apiKey);
   }
@@ -130,32 +151,51 @@ class AIModelManager {
 
   getApiKey(provider, userId) {
     console.log(`🔍 Looking for API key - Provider: ${provider}, User: ${userId}`);
-    console.log(`🔍 Available users:`, Array.from(userApiKeys.keys()));
     
+    // First, check environment variables (priority)
+    if (ENV_API_KEYS[provider]) {
+      console.log(`✅ Using environment API key for ${provider}`);
+      return ENV_API_KEYS[provider];
+    }
+    
+    // Fallback to user-provided keys
+    console.log(`🔍 No env var, checking user keys. Available users:`, Array.from(userApiKeys.keys()));
     const userKeys = userApiKeys.get(userId);
     console.log(`🔍 User keys for ${userId}:`, userKeys ? Object.keys(userKeys) : 'none');
     
     if (userKeys && userKeys[provider]) {
-      console.log(`✅ Found API key for ${provider}`);
+      console.log(`✅ Found user-provided API key for ${provider}`);
       return decryptApiKey(userKeys[provider]);
     }
-    console.log(`❌ No API key found for ${provider}`);
+    
+    console.log(`❌ No API key found for ${provider} - please add through Settings or environment variables`);
     return null;
   }
 
   async generateResponse(modelId, messages, userId) {
     // Map model IDs to their providers and API key fields
     const modelMapping = {
+      // OpenAI Models
       'gpt-4': { provider: 'openai', apiKeyField: 'openai', model: 'gpt-4' },
       'gpt-4-turbo': { provider: 'openai', apiKeyField: 'openai', model: 'gpt-4-turbo-preview' },
+      'gpt-4o-mini': { provider: 'openai', apiKeyField: 'openai', model: 'gpt-4o-mini' },
       'gpt-3.5-turbo': { provider: 'openai', apiKeyField: 'openai', model: 'gpt-3.5-turbo' },
+      
+      // Google Models
+      'gemini-2.5-pro': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.5-pro' },
       'gemini-2.0-flash': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.0-flash' },
       'gemini-2.0-flash-lite': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.0-flash-lite' },
+      'gemini-1.5-pro': { provider: 'google', apiKeyField: 'google', model: 'gemini-1.5-pro' },
+      'gemini-1.5-flash': { provider: 'google', apiKeyField: 'google', model: 'gemini-1.5-flash' },
+      'gemini-1.0-pro': { provider: 'google', apiKeyField: 'google', model: 'gemini-pro' },
       'gemini-2.5-flash-preview-05-20': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.5-flash-preview-05-20' },
       'gemini-2.5-pro-preview-05-06': { provider: 'google', apiKeyField: 'google', model: 'gemini-2.5-pro-preview-05-06' },
+      
+      // Anthropic Models
       'claude-3-opus': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-opus-20240229' },
       'claude-3-sonnet': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
-      'claude-3-haiku': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-5-haiku-20241022' }
+      'claude-3-haiku': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-3-5-haiku-20241022' },
+      'claude-instant': { provider: 'anthropic', apiKeyField: 'anthropic', model: 'claude-instant-1.2' }
     };
 
     const modelConfig = modelMapping[modelId];
@@ -192,7 +232,7 @@ class AIModelManager {
     // Create a system message to set the context
     const systemMessage = {
       role: 'system',
-      content: 'You are participating in a multi-AI conversation. Respond naturally with appropriate length - keep it short (1-2 sentences) for simple responses, medium (2-4 sentences) for explanations, or longer (4-6 sentences) if the topic requires depth. Always stay conversational and respond directly to what was just said.'
+      content: 'You are having a natural conversation with other AIs. Respond naturally by: building on previous points, sharing your own perspective, agreeing or respectfully disagreeing, making observations, or offering new angles. Mix up your response style - sometimes make statements, sometimes share insights, sometimes pose questions, but don\'t end every response with a question. Keep the conversation flowing naturally like friends discussing a topic. Be authentic and avoid assistant-like phrases.'
     };
     
     // Format messages for OpenAI
@@ -234,14 +274,14 @@ class AIModelManager {
     const initialPrompt = validMessages.find(msg => msg.provider === 'user')?.content || 'General discussion';
     
     // Build a conversational prompt that includes the full context
-    let conversationContext = `You are participating in a multi-AI conversation about: "${initialPrompt}"\n\nRespond naturally with appropriate length - short (1-2 sentences) for simple responses, medium (2-4 sentences) for explanations, or longer (4-6 sentences) if the topic requires depth.\n\nConversation so far:\n\n`;
+    let conversationContext = `You are having a natural conversation with other AIs about: "${initialPrompt}"\n\nRespond naturally by: building on previous points, sharing your own perspective, agreeing or respectfully disagreeing, making observations, or offering new angles. Mix up your response style - sometimes make statements, sometimes share insights, sometimes pose questions, but don't end every response with a question. Keep the conversation flowing naturally like friends discussing a topic. Be authentic and avoid assistant-like phrases.\n\nConversation so far:\n\n`;
     
     validMessages.forEach((msg, index) => {
       const speaker = msg.provider === 'user' ? 'Human' : `AI (${msg.provider})`;
       conversationContext += `${speaker}: ${msg.content}\n\n`;
     });
     
-    conversationContext += "Now respond naturally to what was just said, keeping the original topic in mind:";
+    conversationContext += "Now respond naturally - maybe build on what was said, share your perspective, make an observation, or take the discussion in a new direction. Don't feel obligated to ask a question:";
     
     console.log(`🔍 Gemini Debug - Conversation context:`, conversationContext);
     
@@ -272,7 +312,7 @@ class AIModelManager {
     const initialPrompt = messages.find(msg => msg.provider === 'user')?.content || 'General discussion';
     
     // Create a system message for Claude
-    const systemMessage = `You are participating in a multi-AI conversation about: "${initialPrompt}"\n\nRespond naturally with appropriate length - short (1-2 sentences) for simple responses, medium (2-4 sentences) for explanations, or longer (4-6 sentences) if the topic requires depth. Always stay conversational and respond directly to what was just said while keeping the original topic in mind.`;
+    const systemMessage = `You are having a natural conversation with other AIs about: "${initialPrompt}"\n\nAct like a curious, thoughtful participant who builds on what others say. Share your own perspectives, challenge ideas respectfully, ask follow-up questions that dig deeper, and keep the conversation flowing. Avoid saying "I'm here to help" or "feel free to ask" - instead, directly engage with the ideas presented. Be conversational, not an assistant.`;
     
     // Process messages to ensure alternating roles for Claude API
     const processedMessages = [];
@@ -563,7 +603,39 @@ async function continueConversationChain(conversationId, socket) {
   const conversation = conversationManager.getConversation(conversationId);
   if (!conversation || !conversation.isActive) return;
 
-  const currentModelId = conversation.participants[conversation.currentTurn % conversation.participants.length];
+  // Find a model that has an API key available
+  let attempts = 0;
+  let currentModelId = null;
+  
+  while (attempts < conversation.participants.length) {
+    const modelIndex = (conversation.currentTurn + attempts) % conversation.participants.length;
+    const testModelId = conversation.participants[modelIndex];
+    
+    // Check if this model has an API key available
+    const modelMapping = {
+      'gpt-4': 'openai', 'gpt-4-turbo': 'openai', 'gpt-4o-mini': 'openai', 'gpt-3.5-turbo': 'openai',
+      'gemini-2.5-pro': 'google', 'gemini-2.0-flash': 'google', 'gemini-2.0-flash-lite': 'google', 
+      'gemini-1.5-pro': 'google', 'gemini-1.5-flash': 'google', 'gemini-1.0-pro': 'google',
+      'gemini-2.5-flash-preview-05-20': 'google', 'gemini-2.5-pro-preview-05-06': 'google',
+      'claude-3-opus': 'anthropic', 'claude-3-sonnet': 'anthropic', 'claude-3-haiku': 'anthropic', 'claude-instant': 'anthropic'
+    };
+    
+    const provider = modelMapping[testModelId];
+    if (provider && aiManager.getApiKey(provider, conversation.userId)) {
+      currentModelId = testModelId;
+      break;
+    }
+    
+    console.log(`⏭️  Skipping ${testModelId} - no API key for ${provider}`);
+    attempts++;
+  }
+  
+  if (!currentModelId) {
+    console.log(`🛑 No models with API keys available, ending conversation`);
+    conversation.isActive = false;
+    socket.emit('conversationEnded', { conversationId, reason: 'No models with API keys available' });
+    return;
+  }
   
   console.log(`🔄 Conversation Chain - Turn ${conversation.currentTurn}, Model: ${currentModelId}`);
   

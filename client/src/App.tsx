@@ -196,47 +196,71 @@ const AI_MODELS: AIModel[] = [
   { id: 'gpt-4', name: 'GPT-4', company: 'openai', 
     chatBgColor: '#059669', chatTextColor: '#ECFDF5', 
     chipBgColor: '#A7F3D0', chipTextColor: '#065F46', 
-    apiKeyField: 'openai' }, // Chat: Emerald 600, Text: Emerald 50; Chip: Emerald 200, Text: Emerald 700
+    apiKeyField: 'openai' },
   { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', company: 'openai', 
     chatBgColor: '#047857', chatTextColor: '#D1FAE5', 
     chipBgColor: '#6EE7B7', chipTextColor: '#064E3B', 
-    apiKeyField: 'openai' }, // Chat: Emerald 700, Text: Emerald 100; Chip: Emerald 300, Text: Emerald 800
+    apiKeyField: 'openai' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', company: 'openai', 
+    chatBgColor: '#10B981', chatTextColor: '#ECFDF5', 
+    chipBgColor: '#A7F3D0', chipTextColor: '#047857', 
+    apiKeyField: 'openai' },
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', company: 'openai', 
     chatBgColor: '#065F46', chatTextColor: '#A7F3D0', 
     chipBgColor: '#34D399', chipTextColor: '#047857', 
-    apiKeyField: 'openai' }, // Chat: Emerald 800, Text: Emerald 200; Chip: Emerald 400, Text: Emerald 600
+    apiKeyField: 'openai' },
   
   // Google Models (Blue shades)
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', company: 'google', 
+    chatBgColor: '#1E40AF', chatTextColor: '#EFF6FF', 
+    chipBgColor: '#BFDBFE', chipTextColor: '#1D4ED8', 
+    apiKeyField: 'google' },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', company: 'google', 
     chatBgColor: '#2563EB', chatTextColor: '#EFF6FF', 
     chipBgColor: '#BFDBFE', chipTextColor: '#1E40AF', 
-    apiKeyField: 'google' }, // Chat: Blue 600, Text: Blue 50; Chip: Blue 200, Text: Blue 800
+    apiKeyField: 'google' },
   { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', company: 'google', 
     chatBgColor: '#1D4ED8', chatTextColor: '#DBEAFE', 
     chipBgColor: '#93C5FD', chipTextColor: '#1E3A8A', 
-    apiKeyField: 'google' }, // Chat: Blue 700, Text: Blue 100; Chip: Blue 300, Text: Blue 900
+    apiKeyField: 'google' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', company: 'google', 
+    chatBgColor: '#3B82F6', chatTextColor: '#EFF6FF', 
+    chipBgColor: '#93C5FD', chipTextColor: '#1E40AF', 
+    apiKeyField: 'google' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', company: 'google', 
+    chatBgColor: '#60A5FA', chatTextColor: '#1E3A8A', 
+    chipBgColor: '#BFDBFE', chipTextColor: '#1D4ED8', 
+    apiKeyField: 'google' },
+  { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', company: 'google', 
+    chatBgColor: '#1E3A8A', chatTextColor: '#BFDBFE', 
+    chipBgColor: '#60A5FA', chipTextColor: '#1D4ED8', 
+    apiKeyField: 'google' },
   { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview', company: 'google', 
     chatBgColor: '#1E3A8A', chatTextColor: '#BFDBFE', 
     chipBgColor: '#60A5FA', chipTextColor: '#1D4ED8', 
-    apiKeyField: 'google' }, // Chat: Blue 800, Text: Blue 200; Chip: Blue 400, Text: Blue 700
+    apiKeyField: 'google' },
   { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview', company: 'google', 
-    chatBgColor: '#1E40AF', chatTextColor: '#93C5FD', // Example, might be too dark, adjust if needed
+    chatBgColor: '#1E40AF', chatTextColor: '#93C5FD', 
     chipBgColor: '#3B82F6', chipTextColor: '#EFF6FF', 
-    apiKeyField: 'google' }, // Chat: Blue 900, Text: Blue 300; Chip: Blue 500, Text: Blue 50
+    apiKeyField: 'google' },
   
   // Anthropic Models (Orange/Amber shades)
   { id: 'claude-3-opus', name: 'Claude 3 Opus', company: 'anthropic', 
     chatBgColor: '#EA580C', chatTextColor: '#FFF7ED', 
     chipBgColor: '#FED7AA', chipTextColor: '#9A3412', 
-    apiKeyField: 'anthropic' }, // Chat: Orange 600, Text: Orange 50; Chip: Orange 200, Text: Orange 800
+    apiKeyField: 'anthropic' },
   { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', company: 'anthropic', 
     chatBgColor: '#C2410C', chatTextColor: '#FFEFEA', 
     chipBgColor: '#FDBA74', chipTextColor: '#7C2D12', 
-    apiKeyField: 'anthropic' }, // Chat: Orange 700, Text: Orange 100; Chip: Orange 300, Text: Orange 900
+    apiKeyField: 'anthropic' },
   { id: 'claude-3-haiku', name: 'Claude 3 Haiku', company: 'anthropic', 
     chatBgColor: '#9A3412', chatTextColor: '#FED7AA', 
     chipBgColor: '#FB923C', chipTextColor: '#EA580C', 
-    apiKeyField: 'anthropic' }, // Chat: Orange 800, Text: Orange 200; Chip: Orange 400, Text: Orange 600
+    apiKeyField: 'anthropic' },
+  { id: 'claude-instant', name: 'Claude Instant', company: 'anthropic', 
+    chatBgColor: '#F97316', chatTextColor: '#FFF7ED', 
+    chipBgColor: '#FED7AA', chipTextColor: '#C2410C', 
+    apiKeyField: 'anthropic' },
 ];
 
 const getMessageStyle = (provider: string, role: 'user' | 'ai') => {
@@ -591,51 +615,63 @@ function App() {
             )}
 
             {messages.map((message) => {
-              const messageStyle = getMessageStyle(message.provider, message.role);
+              const getMessageClass = (provider: string, role: 'user' | 'ai') => {
+                if (role === 'user') return 'message-user';
+                
+                const model = AI_MODELS.find(m => m.id === provider);
+                if (model) {
+                  if (model.company === 'openai') return 'message-openai';
+                  if (model.company === 'google') return 'message-google';
+                  if (model.company === 'anthropic') return 'message-anthropic';
+                }
+                return 'message-bubble'; // fallback
+              };
+
               return (
-                <Box
+                <div
                   key={message.id}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-                    mb: 1.5,
-                  }}
+                  className={`message-bubble ${getMessageClass(message.provider, message.role)}`}
                 >
-                  <Card
-                    sx={{
-                      maxWidth: '80%',
-                      backgroundColor: messageStyle.backgroundColor,
-                      color: messageStyle.color,
-                      border: `1px solid ${messageStyle.borderColor}`,
-                      p:0 
-                    }}
-                  >
-                    <CardContent sx={{ p: '10px 16px', '&:last-child': { pb: '10px' } }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: messageStyle.color, opacity: 0.9 }}>
-                        {message.role === 'user' ? 'You' : getModelName(message.provider)}
-                      </Typography>
-                      <Typography variant="body1" sx={{ mt: 0.5, whiteSpace: 'pre-wrap', color: messageStyle.color }}>
-                        {message.content}
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block', color: messageStyle.color }}>
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
+                  <div style={{ 
+                    fontFamily: 'JetBrains Mono, monospace', 
+                    fontSize: '11px', 
+                    fontWeight: 600, 
+                    opacity: 0.7, 
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {message.role === 'user' ? '> user' : `> ${getModelName(message.provider)}`}
+                  </div>
+                  <div style={{ 
+                    lineHeight: 1.6, 
+                    fontSize: '14px',
+                    whiteSpace: 'pre-wrap' 
+                  }}>
+                    {message.content}
+                  </div>
+                  <div style={{ 
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '10px', 
+                    opacity: 0.5, 
+                    marginTop: '8px',
+                    textAlign: 'right'
+                  }}>
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
               );
             })}
 
             {thinkingModel && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
-                <Card sx={{ backgroundColor: '#E5E7EB', color: '#374151', p:0 }}>
-                  <CardContent sx={{ p: '8px 12px', '&:last-child': { pb: '8px' } }}>
-                    <Typography variant="caption">
-                      {getModelName(thinkingModel)} is thinking...
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Box>
+              <div className="thinking-indicator">
+                <span>{getModelName(thinkingModel)} is thinking</span>
+                <div className="typing-dots">
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </Box>
