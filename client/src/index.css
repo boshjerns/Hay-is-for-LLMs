@@ -179,7 +179,19 @@ body {
   padding: 20px;
 }
 
+.status-found {
+  color: var(--farm-green);
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
 
+.status-not-found {
+  color: #CC0000;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
 
 /* Loading animation */
 .loading-dots::after {

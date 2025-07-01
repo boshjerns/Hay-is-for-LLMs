@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 interface NeedleTestResult {
   modelId: string;
   response: string;
+  foundNeedle: boolean;
   responseTime: number;
   timestamp: string;
   wordCount?: number;
@@ -96,6 +97,7 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [haystack, setHaystack] = useState('');
   const [needle, setNeedle] = useState('');
+  const [exactMatch, setExactMatch] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKeys>({
     openai: '',
@@ -192,6 +194,7 @@ function App() {
             result: {
               modelId,
               response: `Error: ${error}`,
+              foundNeedle: false,
               responseTime: 0,
               timestamp: new Date().toISOString(),
               wordCount: 0,
@@ -337,8 +340,8 @@ function App() {
   };
 
   const runNeedleTest = () => {
-    if (!socket || !haystack.trim() || !needle.trim()) {
-      setError('Please provide both haystack content and needle to search for');
+    if (!socket || !haystack.trim() || !needle.trim() || !exactMatch.trim()) {
+      setError('Please provide haystack content, needle to search for, and exact match text');
       return;
     }
 
@@ -374,6 +377,7 @@ function App() {
     socket.emit('runNeedleTest', {
       haystack: haystack.trim(),
       needle: needle.trim(),
+      exactMatch: exactMatch.trim(),
       models: modelConfigs
     });
   };
@@ -440,7 +444,7 @@ function App() {
       </div>
 
       {/* Input Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
         {/* Haystack Input */}
         <div className="pixel-border" style={{ padding: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
@@ -490,11 +494,26 @@ function App() {
             value={needle}
             onChange={(e) => setNeedle(e.target.value)}
           />
+        </div>
+
+        {/* Exact Match Input */}
+        <div className="pixel-border" style={{ padding: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '24px', marginRight: '10px' }}>🎯</span>
+            <h2 style={{ fontSize: '18px', margin: 0 }}>EXACT MATCH</h2>
+          </div>
+          <textarea
+            className="terminal-input"
+            style={{ width: '100%', height: '100px', resize: 'vertical' }}
+            placeholder="Exact text that should appear in correct responses..."
+            value={exactMatch}
+            onChange={(e) => setExactMatch(e.target.value)}
+          />
           <button
             className="farm-button"
             style={{ width: '100%', marginTop: '10px', fontSize: '20px' }}
             onClick={runNeedleTest}
-            disabled={isTestRunning || !haystack.trim() || !needle.trim()}
+            disabled={isTestRunning || !haystack.trim() || !needle.trim() || !exactMatch.trim()}
           >
             {isTestRunning ? 'RUNNING...' : 'RUN TEST'}
           </button>
@@ -634,8 +653,8 @@ function App() {
                   </div>
                 ) : state.result ? (
                   <div style={{ width: '100%' }}>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--farm-green)', marginBottom: '10px' }}>
-                      RESPONSE RECEIVED
+                    <div className={state.result.foundNeedle ? 'status-found' : 'status-not-found'}>
+                      {state.result.foundNeedle ? '✓ FOUND!' : '✗ NOT FOUND'}
                     </div>
                     
                     {/* Enhanced Metrics */}

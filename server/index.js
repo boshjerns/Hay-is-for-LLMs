@@ -512,12 +512,13 @@ class NeedleTestManager {
     this.activeTests = new Map();
   }
 
-  async runNeedleTest(userId, haystack, needle, models, socket) {
+  async runNeedleTest(userId, haystack, needle, exactMatch, models, socket) {
     const testId = uuidv4();
     this.activeTests.set(testId, {
       userId,
       haystack,
       needle,
+      exactMatch,
       models,
       results: new Map(),
       startTime: Date.now()
@@ -565,9 +566,13 @@ Your response should be concise and focused only on finding the needle.`;
         
         const responseTime = Date.now() - startTime;
         
+        // Check if exact match text appears in the response (case-insensitive)
+        const foundNeedle = this.checkExactMatch(response, exactMatch);
+        
         const result = {
           modelId: modelConfig.modelId,
           response,
+          foundNeedle,
           responseTime,
           timestamp: new Date().toISOString()
         };
@@ -593,11 +598,17 @@ Your response should be concise and focused only on finding the needle.`;
     
     socket.emit('allTestsComplete', { testId });
     
-    // Clean up
+        // Clean up
     this.activeTests.delete(testId);
   }
 
-
+  checkExactMatch(response, exactMatch) {
+    // Simple case-insensitive string search
+    const responseLower = response.toLowerCase();
+    const exactMatchLower = exactMatch.toLowerCase();
+    
+    return responseLower.includes(exactMatchLower);
+  }
 }
 
 const needleTestManager = new NeedleTestManager(aiManager);
@@ -615,11 +626,11 @@ io.on('connection', (socket) => {
   });
 
   // Needle Test Handler
-  socket.on('runNeedleTest', async ({ haystack, needle, models }) => {
+  socket.on('runNeedleTest', async ({ haystack, needle, exactMatch, models }) => {
     console.log(`🔍 Needle test requested with ${models.length} models`);
     
     try {
-      await needleTestManager.runNeedleTest(sessionId, haystack, needle, models, socket);
+      await needleTestManager.runNeedleTest(sessionId, haystack, needle, exactMatch, models, socket);
     } catch (error) {
       console.error('Error running needle test:', error);
       socket.emit('error', { message: error.message });
