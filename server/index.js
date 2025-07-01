@@ -526,23 +526,11 @@ class NeedleTestManager {
 
     console.log(`🔍 Starting needle test ${testId} with ${models.length} models`);
     
-    // Create prompt for needle test
-    const prompt = `Below is a large text (the "haystack"). Your task is to find the following specific information (the "needle") within this text:
+    // Create prompt for needle test - just ask the question naturally
+    const prompt = `${needle}
 
-NEEDLE TO FIND:
-${needle}
-
-HAYSTACK TEXT:
-${haystack}
-
-Please search through the haystack text and:
-1. Find the specific information described in the needle
-2. Quote the exact text from the haystack that contains this information
-3. Provide context around where you found it
-
-If you cannot find the needle in the haystack, clearly state that it was not found.
-
-Your response should be concise and focused only on finding the needle.`;
+Context document:
+${haystack}`;
 
     // Run tests for all models in parallel
     const testPromises = models.map(async (modelConfig) => {
