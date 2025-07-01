@@ -603,11 +603,56 @@ Your response should be concise and focused only on finding the needle.`;
   }
 
   checkExactMatch(response, exactMatch) {
-    // Simple case-insensitive string search
-    const responseLower = response.toLowerCase();
-    const exactMatchLower = exactMatch.toLowerCase();
+    if (!response || !exactMatch) {
+      console.log(`🔍 Exact Match Debug: Missing input - response: ${!!response}, exactMatch: ${!!exactMatch}`);
+      return false;
+    }
+
+    // Trim whitespace and ensure we have content
+    const cleanResponse = response.trim();
+    const cleanExactMatch = exactMatch.trim();
     
-    return responseLower.includes(exactMatchLower);
+    if (!cleanResponse || !cleanExactMatch) {
+      console.log(`🔍 Exact Match Debug: Empty after trimming - response: "${cleanResponse}", exactMatch: "${cleanExactMatch}"`);
+      return false;
+    }
+
+    console.log(`🔍 Exact Match Debug: Looking for "${cleanExactMatch}" in response of ${cleanResponse.length} characters`);
+
+    // Try multiple matching strategies
+    const responseLower = cleanResponse.toLowerCase();
+    const exactMatchLower = cleanExactMatch.toLowerCase();
+
+    // Strategy 1: Exact substring match (case-insensitive)
+    const hasSubstring = responseLower.includes(exactMatchLower);
+    
+    // Strategy 2: Word boundary match (for more precise matching)
+    // This prevents partial word matches like "15609" matching "915609a"
+    const wordBoundaryRegex = new RegExp(`\\b${exactMatchLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const hasWordBoundary = wordBoundaryRegex.test(responseLower);
+    
+    // Strategy 3: Exact case-sensitive match
+    const hasExactCase = cleanResponse.includes(cleanExactMatch);
+
+    console.log(`🔍 Exact Match Results:`);
+    console.log(`  - Substring match: ${hasSubstring}`);
+    console.log(`  - Word boundary match: ${hasWordBoundary}`);
+    console.log(`  - Exact case match: ${hasExactCase}`);
+    
+    // Use word boundary match as it's more precise than substring but not as strict as exact case
+    const finalResult = hasWordBoundary;
+    console.log(`  - Final result: ${finalResult}`);
+    
+    if (finalResult) {
+      // Show where it was found
+      const matchIndex = responseLower.indexOf(exactMatchLower);
+      const contextStart = Math.max(0, matchIndex - 50);
+      const contextEnd = Math.min(responseLower.length, matchIndex + exactMatchLower.length + 50);
+      const context = cleanResponse.substring(contextStart, contextEnd);
+      console.log(`  - Found at position ${matchIndex}: "...${context}..."`);
+    }
+    
+    return finalResult;
   }
 }
 

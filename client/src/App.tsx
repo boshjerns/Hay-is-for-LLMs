@@ -505,10 +505,13 @@ function App() {
           <textarea
             className="terminal-input"
             style={{ width: '100%', height: '100px', resize: 'vertical' }}
-            placeholder="Exact text that should appear in correct responses..."
+            placeholder="Exact text that should appear in correct responses (e.g., 'FAR 15.609', 'Section 3.2.1', etc.)..."
             value={exactMatch}
             onChange={(e) => setExactMatch(e.target.value)}
           />
+          <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '5px' }}>
+            💡 Use specific phrases, numbers, or regulations for accurate detection
+          </div>
           <button
             className="farm-button"
             style={{ width: '100%', marginTop: '10px', fontSize: '20px' }}
@@ -654,7 +657,7 @@ function App() {
                 ) : state.result ? (
                   <div style={{ width: '100%' }}>
                     <div className={state.result.foundNeedle ? 'status-found' : 'status-not-found'}>
-                      {state.result.foundNeedle ? '✓ FOUND!' : '✗ NOT FOUND'}
+                      {state.result.foundNeedle ? '✓ EXACT MATCH FOUND!' : '✗ EXACT MATCH NOT FOUND'}
                     </div>
                     
                     {/* Enhanced Metrics */}
@@ -666,8 +669,10 @@ function App() {
                       <div style={{ gridColumn: '1 / -1' }}>📖 ~{state.result.readingTime || 0} min read</div>
                     </div>
                     
+                    <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px', marginBottom: '5px' }}>
+                      📝 MODEL RESPONSE:
+                    </div>
                     <div style={{
-                      marginTop: '10px',
                       padding: '10px',
                       background: 'var(--farm-dark-beige)',
                       border: '2px solid var(--farm-green)',
