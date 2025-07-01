@@ -505,71 +505,240 @@ class ConversationManager {
 
 const conversationManager = new ConversationManager();
 
+// Needle Test Manager
+class NeedleTestManager {
+  constructor(aiManager) {
+    this.aiManager = aiManager;
+    this.activeTests = new Map();
+  }
+
+  async runNeedleTest(userId, haystack, needle, models, socket) {
+    const testId = uuidv4();
+    this.activeTests.set(testId, {
+      userId,
+      haystack,
+      needle,
+      models,
+      results: new Map(),
+      startTime: Date.now()
+    });
+
+    console.log(`🔍 Starting needle test ${testId} with ${models.length} models`);
+    
+    // Create prompt for needle test
+    const prompt = `Below is a large text (the "haystack"). Your task is to find the following specific information (the "needle") within this text:
+
+NEEDLE TO FIND:
+${needle}
+
+HAYSTACK TEXT:
+${haystack}
+
+Please search through the haystack text and:
+1. Find the specific information described in the needle
+2. Quote the exact text from the haystack that contains this information
+3. Provide context around where you found it
+
+If you cannot find the needle in the haystack, clearly state that it was not found.
+
+Your response should be concise and focused only on finding the needle.`;
+
+    // Run tests for all models in parallel
+    const testPromises = models.map(async (modelConfig) => {
+      const startTime = Date.now();
+      
+      try {
+        socket.emit('aiThinking', { provider: modelConfig.modelId });
+        
+        // Create a simple message format for the needle test
+        const messages = [{
+          provider: 'user',
+          content: prompt,
+          role: 'user'
+        }];
+
+        const response = await this.aiManager.generateResponse(
+          modelConfig.modelId, 
+          messages, 
+          userId
+        );
+        
+        const responseTime = Date.now() - startTime;
+        
+        // Simple check if needle was found (can be enhanced with better detection)
+        const foundNeedle = this.checkIfNeedleFound(response, needle);
+        
+        const result = {
+          modelId: modelConfig.modelId,
+          response,
+          foundNeedle,
+          responseTime,
+          timestamp: new Date().toISOString()
+        };
+
+        socket.emit('needleTestResult', result);
+        
+        const test = this.activeTests.get(testId);
+        if (test) {
+          test.results.set(modelConfig.modelId, result);
+        }
+        
+      } catch (error) {
+        console.error(`Error testing model ${modelConfig.modelId}:`, error);
+        socket.emit('needleTestError', { 
+          modelId: modelConfig.modelId, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Wait for all tests to complete
+    await Promise.all(testPromises);
+    
+    socket.emit('allTestsComplete', { testId });
+    
+    // Clean up
+    this.activeTests.delete(testId);
+  }
+
+  checkIfNeedleFound(response, needle) {
+    // Simple heuristic - check if the response mentions finding the information
+    // and doesn't say it wasn't found
+    const responseLower = response.toLowerCase();
+    const needleLower = needle.toLowerCase();
+    
+    // Negative indicators
+    const notFoundPhrases = [
+      'not found',
+      'cannot find',
+      'could not find',
+      'unable to find',
+      'no mention',
+      'does not contain',
+      'doesn\'t contain',
+      'not present',
+      'not in the text',
+      'not in the haystack'
+    ];
+    
+    const hasNegativeIndicator = notFoundPhrases.some(phrase => 
+      responseLower.includes(phrase)
+    );
+    
+    if (hasNegativeIndicator) {
+      return false;
+    }
+    
+    // Positive indicators
+    const foundPhrases = [
+      'found',
+      'located',
+      'appears',
+      'mentions',
+      'states',
+      'contains',
+      'includes',
+      'says'
+    ];
+    
+    const hasPositiveIndicator = foundPhrases.some(phrase => 
+      responseLower.includes(phrase)
+    );
+    
+    // Also check if some key words from the needle appear in the response
+    const needleWords = needleLower.split(/\s+/).filter(word => word.length > 3);
+    const matchedWords = needleWords.filter(word => responseLower.includes(word));
+    const matchRatio = matchedWords.length / needleWords.length;
+    
+    return hasPositiveIndicator || matchRatio > 0.5;
+  }
+}
+
+const needleTestManager = new NeedleTestManager(aiManager);
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-  
-  // Create a persistent user session ID
-  let userSessionId = socket.handshake.query.sessionId;
-  if (!userSessionId) {
-    userSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-  socket.userSessionId = userSessionId;
-  
-  console.log(`👤 User session: ${userSessionId}`);
+  const sessionId = socket.handshake.query.sessionId || uuidv4();
+  console.log(`New client connected: ${socket.id} with session: ${sessionId}`);
 
+  // API Key Management
   socket.on('setApiKey', ({ provider, apiKey }) => {
+    console.log(`Setting API key for ${provider} (session: ${sessionId})`);
+    aiManager.setApiKey(provider, apiKey, sessionId);
+    socket.emit('apiKeySet', { provider, success: true, sessionId });
+  });
+
+  // Needle Test Handler
+  socket.on('runNeedleTest', async ({ haystack, needle, models }) => {
+    console.log(`🔍 Needle test requested with ${models.length} models`);
+    
     try {
-      console.log(`🔑 Setting API key for ${provider}, Session: ${userSessionId}`);
-      aiManager.setApiKey(provider, apiKey, userSessionId);
-      console.log(`✅ API key set successfully for ${provider}`);
-      socket.emit('apiKeySet', { provider, success: true, sessionId: userSessionId });
+      await needleTestManager.runNeedleTest(sessionId, haystack, needle, models, socket);
     } catch (error) {
-      console.log(`❌ Failed to set API key for ${provider}:`, error.message);
-      socket.emit('apiKeySet', { provider, success: false, error: error.message });
+      console.error('Error running needle test:', error);
+      socket.emit('error', { message: error.message });
     }
   });
 
-  socket.on('startConversation', ({ participants, initialPrompt }) => {
-    try {
-      const conversationId = conversationManager.createConversation(userSessionId, participants);
-      socket.join(conversationId);
-      socket.currentConversationId = conversationId; // Store conversation ID on socket
+  // Keep existing conversation handlers for backwards compatibility
+  socket.on('startConversation', async ({ participants, initialPrompt }) => {
+    console.log(`Starting conversation with participants: ${participants.join(', ')}`);
+    
+    // Validate that all participants have API keys
+    const missingKeys = [];
+    participants.forEach(modelId => {
+      const modelConfig = {
+        'gpt-4': 'openai',
+        'gpt-4-turbo': 'openai',
+        'gpt-4o-mini': 'openai',
+        'gpt-3.5-turbo': 'openai',
+        'gemini-2.5-pro': 'google',
+        'gemini-2.0-flash': 'google',
+        'gemini-2.0-flash-lite': 'google',
+        'gemini-1.5-pro': 'google',
+        'gemini-1.5-flash': 'google',
+        'gemini-1.0-pro': 'google',
+        'gemini-2.5-flash-preview-05-20': 'google',
+        'gemini-2.5-pro-preview-05-06': 'google',
+        'claude-3-opus': 'anthropic',
+        'claude-3-sonnet': 'anthropic',
+        'claude-3-haiku': 'anthropic',
+        'claude-instant': 'anthropic'
+      };
       
-      // Start the conversation chain
-      startConversationChain(conversationId, initialPrompt, socket);
-      
-      socket.emit('conversationStarted', { conversationId });
-    } catch (error) {
-      socket.emit('error', { message: error.message });
+      const provider = modelConfig[modelId];
+      if (provider && !aiManager.getApiKey(provider, sessionId)) {
+        missingKeys.push(provider);
+      }
+    });
+
+    if (missingKeys.length > 0) {
+      socket.emit('error', { 
+        message: `Missing API keys for: ${[...new Set(missingKeys)].join(', ')}. Please add them in Settings.` 
+      });
+      return;
     }
+
+    const conversationId = conversationManager.createConversation(sessionId, participants);
+    const conversation = conversationManager.getConversation(conversationId);
+    conversation.isActive = true;
+    
+    socket.emit('conversationStarted', { conversationId });
+    
+    // Start the conversation with the initial prompt
+    startConversationChain(conversationId, initialPrompt, socket);
   });
 
   socket.on('stopConversation', ({ conversationId }) => {
-    try {
-      console.log(`🛑 Stop conversation requested for: ${conversationId}`);
-      const conversation = conversationManager.getConversation(conversationId);
-      if (conversation) {
-        conversation.isActive = false;
-        console.log(`✅ Conversation ${conversationId} stopped by user`);
-        socket.emit('conversationEnded', { conversationId, reason: 'Stopped by user' });
-      }
-    } catch (error) {
-      console.error('Error stopping conversation:', error);
-      socket.emit('error', { message: error.message });
+    console.log(`Stopping conversation: ${conversationId}`);
+    const stopped = conversationManager.stopConversation(conversationId);
+    if (stopped) {
+      socket.emit('conversationEnded', { conversationId, reason: 'User requested stop' });
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    // Stop any active conversations when user disconnects
-    if (socket.currentConversationId) {
-      const conversation = conversationManager.getConversation(socket.currentConversationId);
-      if (conversation) {
-        conversation.isActive = false;
-        console.log(`🛑 Conversation ${socket.currentConversationId} stopped due to disconnect`);
-      }
-    }
+    console.log(`Client disconnected: ${socket.id}`);
   });
 });
 

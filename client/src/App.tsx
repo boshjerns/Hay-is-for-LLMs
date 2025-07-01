@@ -1,162 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Alert,
-  Card,
-  CardContent,
-  IconButton,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  SelectChangeEvent,
-  ThemeProvider,
-  createTheme
-} from '@mui/material';
-import {
-  Send as SendIcon,
-  Settings as SettingsIcon,
-  Chat as ChatIcon,
-  Stop as StopIcon,
-  Visibility,
-  VisibilityOff,
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon
-} from '@mui/icons-material';
 import { io, Socket } from 'socket.io-client';
 
-// Adjusted minimal theme for better color compatibility
-const minimalTheme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#000000', // Black for primary actions if needed
-    },
-    secondary: {
-      main: '#555555', // Dark grey
-    },
-    background: {
-      default: '#F3F4F6', // Tailwind Cool Gray 100 (Light page background)
-      paper: '#FFFFFF',   // White for Paper elements (main chat area, dropdowns)
-    },
-    text: {
-      primary: '#1F2937',   // Tailwind Cool Gray 800 (Dark text)
-      secondary: '#6B7280', // Tailwind Cool Gray 500 (Medium text)
-    },
-  },
-  typography: {
-    fontFamily: 'Arial, sans-serif',
-    h5: {
-      fontWeight: 600,
-      color: '#111827' // Tailwind Cool Gray 900
-    },
-    caption: {
-        color: '#4B5563' // Tailwind Cool Gray 600
-    }
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: '4px', // Slightly rounded
-          textTransform: 'none',
-          padding: '6px 16px',
-        },
-        containedPrimary: {
-          backgroundColor: '#1F2937', // Dark Gray for buttons
-          color: '#FFFFFF',
-          '&:hover': {
-            backgroundColor: '#111827',
-          },
-        },
-        outlined: {
-            borderColor: '#D1D5DB', // Cool Gray 300
-            color: '#374151' // Cool Gray 700
-        }
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: '4px',
-            '& fieldset': {
-              borderColor: '#D1D5DB', // Cool Gray 300
-            },
-            '&:hover fieldset': {
-              borderColor: '#9CA3AF', // Cool Gray 400
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#374151', // Cool Gray 700
-            },
-          },
-        },
-      },
-    },
-    MuiPaper: {
-        styleOverrides: {
-            root: {
-                // General paper style, avoid overly specific overrides if Card will handle itself
-            },
-            elevation3: { // Main chat container paper
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', // Soft shadow
-                border: 'none' // Remove border if shadow is present
-            }
-        }
-    },
-    MuiCard: {
-        styleOverrides: {
-            root: { // For message cards
-                borderRadius: '8px', // Rounded message bubbles
-                boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06)', // Subtle shadow
-                border: 'none'
-            }
-        }
-    },
-    MuiChip: {
-        styleOverrides: {
-            root: {
-                borderRadius: '16px', // Pill-shaped chips
-                padding: '0px 8px',
-                height: '28px'
-            }
-        }
-    },
-    MuiDialog: {
-        styleOverrides: {
-            paper: {
-                borderRadius: '8px',
-                border: '1px solid #E5E7EB' // Cool Gray 200
-            }
-        }
-    },
-    MuiSelect: {
-        styleOverrides:{
-            root:{
-                borderRadius: '4px'
-            }
-        }
-    }
-  },
-});
-
-interface Message {
-  id: string;
-  provider: string;
-  content: string;
+interface NeedleTestResult {
+  modelId: string;
+  response: string;
+  foundNeedle: boolean;
+  responseTime: number;
   timestamp: string;
-  role: 'user' | 'ai';
+  wordCount?: number;
+  characterCount?: number;
+  sentenceCount?: number;
+  readingTime?: number;
+}
+
+interface ModelCardState {
+  isExpanded: boolean;
+  isLoading: boolean;
+  result: NeedleTestResult | null;
+  temperature: number;
+  maxTokens: number;
 }
 
 interface ApiKeys {
@@ -169,150 +31,110 @@ interface AIModel {
   id: string;
   name: string;
   company: string;
-  // For chat bubbles
-  chatBgColor: string;
-  chatTextColor: string;
-  // For selection chips
-  chipBgColor: string;
-  chipTextColor: string;
+  cardColor: string;
+  accentColor: string;
+  textColor: string;
   apiKeyField: keyof ApiKeys;
 }
 
-interface Company {
-  id: string;
-  name: string;
-  baseColor: string; // Base color for the company (used for company selection chip)
-  apiKeyField: keyof ApiKeys;
-}
-
-const AI_COMPANIES: Company[] = [
-  { id: 'openai', name: 'OpenAI', baseColor: '#10B981', apiKeyField: 'openai' }, // Emerald 500
-  { id: 'google', name: 'Google', baseColor: '#3B82F6', apiKeyField: 'google' }, // Blue 500
-  { id: 'anthropic', name: 'Anthropic', baseColor: '#F97316', apiKeyField: 'anthropic' } // Orange 500
-];
-
+// Define AI models with their card styling
 const AI_MODELS: AIModel[] = [
-  // OpenAI Models (Emerald/Green shades)
+  // OpenAI Models (Green theme)
   { id: 'gpt-4', name: 'GPT-4', company: 'openai', 
-    chatBgColor: '#059669', chatTextColor: '#ECFDF5', 
-    chipBgColor: '#A7F3D0', chipTextColor: '#065F46', 
+    cardColor: '#10B981', accentColor: '#059669', textColor: '#FFFFFF', 
     apiKeyField: 'openai' },
   { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', company: 'openai', 
-    chatBgColor: '#047857', chatTextColor: '#D1FAE5', 
-    chipBgColor: '#6EE7B7', chipTextColor: '#064E3B', 
+    cardColor: '#059669', accentColor: '#047857', textColor: '#FFFFFF', 
     apiKeyField: 'openai' },
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', company: 'openai', 
-    chatBgColor: '#10B981', chatTextColor: '#ECFDF5', 
-    chipBgColor: '#A7F3D0', chipTextColor: '#047857', 
+    cardColor: '#34D399', accentColor: '#10B981', textColor: '#065F46', 
     apiKeyField: 'openai' },
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', company: 'openai', 
-    chatBgColor: '#065F46', chatTextColor: '#A7F3D0', 
-    chipBgColor: '#34D399', chipTextColor: '#047857', 
+    cardColor: '#6EE7B7', accentColor: '#34D399', textColor: '#065F46', 
     apiKeyField: 'openai' },
   
-  // Google Models (Blue shades)
+  // Google Models (Blue theme)
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', company: 'google', 
-    chatBgColor: '#1E40AF', chatTextColor: '#EFF6FF', 
-    chipBgColor: '#BFDBFE', chipTextColor: '#1D4ED8', 
+    cardColor: '#3B82F6', accentColor: '#2563EB', textColor: '#FFFFFF', 
     apiKeyField: 'google' },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', company: 'google', 
-    chatBgColor: '#2563EB', chatTextColor: '#EFF6FF', 
-    chipBgColor: '#BFDBFE', chipTextColor: '#1E40AF', 
+    cardColor: '#2563EB', accentColor: '#1D4ED8', textColor: '#FFFFFF', 
     apiKeyField: 'google' },
   { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', company: 'google', 
-    chatBgColor: '#1D4ED8', chatTextColor: '#DBEAFE', 
-    chipBgColor: '#93C5FD', chipTextColor: '#1E3A8A', 
+    cardColor: '#60A5FA', accentColor: '#3B82F6', textColor: '#1E3A8A', 
     apiKeyField: 'google' },
   { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', company: 'google', 
-    chatBgColor: '#3B82F6', chatTextColor: '#EFF6FF', 
-    chipBgColor: '#93C5FD', chipTextColor: '#1E40AF', 
+    cardColor: '#1D4ED8', accentColor: '#1E40AF', textColor: '#FFFFFF', 
     apiKeyField: 'google' },
   { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', company: 'google', 
-    chatBgColor: '#60A5FA', chatTextColor: '#1E3A8A', 
-    chipBgColor: '#BFDBFE', chipTextColor: '#1D4ED8', 
+    cardColor: '#93C5FD', accentColor: '#60A5FA', textColor: '#1E3A8A', 
     apiKeyField: 'google' },
   { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', company: 'google', 
-    chatBgColor: '#1E3A8A', chatTextColor: '#BFDBFE', 
-    chipBgColor: '#60A5FA', chipTextColor: '#1D4ED8', 
-    apiKeyField: 'google' },
-  { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview', company: 'google', 
-    chatBgColor: '#1E3A8A', chatTextColor: '#BFDBFE', 
-    chipBgColor: '#60A5FA', chipTextColor: '#1D4ED8', 
-    apiKeyField: 'google' },
-  { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview', company: 'google', 
-    chatBgColor: '#1E40AF', chatTextColor: '#93C5FD', 
-    chipBgColor: '#3B82F6', chipTextColor: '#EFF6FF', 
+    cardColor: '#BFDBFE', accentColor: '#93C5FD', textColor: '#1E40AF', 
     apiKeyField: 'google' },
   
-  // Anthropic Models (Orange/Amber shades)
+  // Anthropic Models (Orange theme)
   { id: 'claude-3-opus', name: 'Claude 3 Opus', company: 'anthropic', 
-    chatBgColor: '#EA580C', chatTextColor: '#FFF7ED', 
-    chipBgColor: '#FED7AA', chipTextColor: '#9A3412', 
+    cardColor: '#F97316', accentColor: '#EA580C', textColor: '#FFFFFF', 
     apiKeyField: 'anthropic' },
   { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', company: 'anthropic', 
-    chatBgColor: '#C2410C', chatTextColor: '#FFEFEA', 
-    chipBgColor: '#FDBA74', chipTextColor: '#7C2D12', 
+    cardColor: '#EA580C', accentColor: '#C2410C', textColor: '#FFFFFF', 
     apiKeyField: 'anthropic' },
   { id: 'claude-3-haiku', name: 'Claude 3 Haiku', company: 'anthropic', 
-    chatBgColor: '#9A3412', chatTextColor: '#FED7AA', 
-    chipBgColor: '#FB923C', chipTextColor: '#EA580C', 
+    cardColor: '#FB923C', accentColor: '#F97316', textColor: '#7C2D12', 
     apiKeyField: 'anthropic' },
   { id: 'claude-instant', name: 'Claude Instant', company: 'anthropic', 
-    chatBgColor: '#F97316', chatTextColor: '#FFF7ED', 
-    chipBgColor: '#FED7AA', chipTextColor: '#C2410C', 
+    cardColor: '#FED7AA', accentColor: '#FDBA74', textColor: '#9A3412', 
     apiKeyField: 'anthropic' },
 ];
 
-const getMessageStyle = (provider: string, role: 'user' | 'ai') => {
-  if (role === 'user') {
-    return {
-      backgroundColor: '#4B5563', // Cool Gray 600
-      color: '#F9FAFB',           // Cool Gray 50
-      borderColor: '#374151'    // Cool Gray 700
-    };
-  }
-  const model = AI_MODELS.find(m => m.id === provider);
-  if (model) {
-    return {
-      backgroundColor: model.chatBgColor,
-      color: model.chatTextColor,
-      borderColor: model.chatBgColor // Or a slightly darker shade of chatBgColor
-    };
-  }
-  // Fallback AI style
-  return {
-    backgroundColor: '#E5E7EB', // Cool Gray 200
-    color: '#1F2937',           // Cool Gray 800
-    borderColor: '#D1D5DB'    // Cool Gray 300
-  };
-};
+// Needle and Haystack SVG images as data URLs
+const NEEDLE_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 300'%3E%3Cdefs%3E%3ClinearGradient id='metal' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' style='stop-color:%23a0a0a0'/%3E%3Cstop offset='50%25' style='stop-color:%23f0f0f0'/%3E%3Cstop offset='100%25' style='stop-color:%23707070'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cellipse cx='50' cy='40' rx='20' ry='35' fill='%23364e65'/%3E%3Crect x='45' y='40' width='10' height='240' fill='url(%23metal)'/%3E%3Cpolygon points='50,280 45,290 55,290' fill='url(%23metal)'/%3E%3C/svg%3E";
+
+const HAYSTACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'%3E%3Cpath d='M100 20 L30 140 L170 140 Z' fill='%23daa520' stroke='%238b4513' stroke-width='3'/%3E%3Cpath d='M100 20 Q80 60 70 100' stroke='%238b4513' stroke-width='2' fill='none'/%3E%3Cpath d='M100 20 Q120 60 130 100' stroke='%238b4513' stroke-width='2' fill='none'/%3E%3Cpath d='M100 20 Q100 60 100 100' stroke='%238b4513' stroke-width='2' fill='none'/%3E%3C/svg%3E";
 
 function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [haystack, setHaystack] = useState('');
+  const [needle, setNeedle] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKeys>({
     openai: '',
     google: '',
     anthropic: ''
   });
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
-  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
-  const [initialPrompt, setInitialPrompt] = useState('');
-  const [conversationActive, setConversationActive] = useState(false);
-  const [thinkingModel, setThinkingModel] = useState<string | null>(null);
+  const [modelStates, setModelStates] = useState<Map<string, ModelCardState>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState<{[key: string]: boolean}>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isTestRunning, setIsTestRunning] = useState(false);
+  const [selectedModelsToShow, setSelectedModelsToShow] = useState<string[]>(AI_MODELS.map(m => m.id));
+  const [masterTemperature, setMasterTemperature] = useState(0.7);
+  const [masterMaxTokens, setMasterMaxTokens] = useState(1000);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Initialize model states
   useEffect(() => {
-    let storedSessionId = localStorage.getItem('multiAiChatSessionId');
+    const initialStates = new Map<string, ModelCardState>();
+    AI_MODELS.forEach(model => {
+      initialStates.set(model.id, {
+        isExpanded: false,
+        isLoading: false,
+        result: null,
+        temperature: 0.7,
+        maxTokens: 1000
+      });
+    });
+    setModelStates(initialStates);
+  }, []);
+
+  // Socket connection
+  useEffect(() => {
+    let storedSessionId = localStorage.getItem('needleTestSessionId');
     if (!storedSessionId) {
       storedSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('multiAiChatSessionId', storedSessionId);
+      localStorage.setItem('needleTestSessionId', storedSessionId);
     }
     
     const newSocketInstance = io('http://localhost:5000', {
@@ -329,72 +151,106 @@ function App() {
       if (success) {
         setSuccess(`${provider} API key set successfully`);
         if (returnedSessionId) {
-          localStorage.setItem('multiAiChatSessionId', returnedSessionId);
+          localStorage.setItem('needleTestSessionId', returnedSessionId);
         }
       } else {
         setError(`Failed to set ${provider} API key`);
       }
     });
 
-    newSocketInstance.on('conversationStarted', ({ conversationId }) => {
-      console.log('Conversation started:', conversationId);
-      setConversationActive(true);
-      setCurrentConversationId(conversationId);
+    newSocketInstance.on('needleTestResult', (result: NeedleTestResult) => {
+      // Calculate additional metrics
+      const enhancedResult = {
+        ...result,
+        wordCount: getWordCount(result.response),
+        characterCount: getCharacterCount(result.response),
+        sentenceCount: getSentenceCount(result.response),
+        readingTime: getReadingTime(result.response)
+      };
+
+      setModelStates(prev => {
+        const newStates = new Map(prev);
+        const state = newStates.get(result.modelId);
+        if (state) {
+          newStates.set(result.modelId, {
+            ...state,
+            isLoading: false,
+            result: enhancedResult
+          });
+        }
+        return newStates;
+      });
     });
 
-    newSocketInstance.on('newMessage', (message: Message) => {
-      setMessages(prev => [...prev, message]);
-      setThinkingModel(null);
+    newSocketInstance.on('needleTestError', ({ modelId, error }) => {
+      setModelStates(prev => {
+        const newStates = new Map(prev);
+        const state = newStates.get(modelId);
+        if (state) {
+          newStates.set(modelId, {
+            ...state,
+            isLoading: false,
+            result: {
+              modelId,
+              response: `Error: ${error}`,
+              foundNeedle: false,
+              responseTime: 0,
+              timestamp: new Date().toISOString(),
+              wordCount: 0,
+              characterCount: 0,
+              sentenceCount: 0,
+              readingTime: 0
+            }
+          });
+        }
+        return newStates;
+      });
     });
 
-    newSocketInstance.on('aiThinking', ({ provider }) => {
-      setThinkingModel(provider);
+    newSocketInstance.on('allTestsComplete', () => {
+      setIsTestRunning(false);
+      setSuccess('All tests completed!');
     });
 
-    newSocketInstance.on('conversationEnded', ({ reason }) => {
-      setConversationActive(false);
-      setThinkingModel(null);
-      setCurrentConversationId(null);
-      setSuccess(reason ? `Conversation ended: ${reason}` : 'Conversation ended');
-    });
-
-    newSocketInstance.on('error', ({ message, provider }) => {
-      setError(`Error${provider ? ` with ${provider}` : ''}: ${message}`);
-      setThinkingModel(null);
+    newSocketInstance.on('error', ({ message }) => {
+      setError(message);
     });
 
     return () => {
       newSocketInstance.close();
-      console.log('Socket connection closed');
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
   }, []);
 
+  // Auto-clear success/error messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, thinkingModel]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError(null);
+        setSuccess(null);
+      }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error]);
+  }, [error, success]);
 
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
+  // Utility functions for message metrics
+  const getWordCount = (text: string) => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
 
-  useEffect(() => {
-    const filtered = AI_MODELS.filter(model => selectedCompanies.includes(model.company));
-    setAvailableModels(filtered);
-    setSelectedModels(prev => prev.filter(modelId => 
-      filtered.some(model => model.id === modelId)
-    ));
-  }, [selectedCompanies]);
+  const getCharacterCount = (text: string) => {
+    return text.length;
+  };
+
+  const getReadingTime = (text: string) => {
+    const wordsPerMinute = 200;
+    const words = getWordCount(text);
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
+  };
+
+  const getSentenceCount = (text: string) => {
+    return text.split(/[.!?]+/).filter(sentence => sentence.trim().length > 0).length;
+  };
 
   const handleApiKeyChange = (provider: keyof ApiKeys, value: string) => {
     setApiKeys(prev => ({ ...prev, [provider]: value }));
@@ -406,316 +262,488 @@ function App() {
     }
   };
 
-  const handleCompanySelection = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setSelectedCompanies(typeof value === 'string' ? value.split(',') : value);
-  };
-
-  const handleModelSelection = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setSelectedModels(typeof value === 'string' ? value.split(',') : value);
-  };
-
-  const startConversation = () => {
-    if (socket && selectedModels.length >= 2 && initialPrompt.trim()) {
-      setMessages([]);
-      setError(null);
-      setCurrentConversationId(null);
-      socket.emit('startConversation', {
-        participants: selectedModels,
-        initialPrompt: initialPrompt.trim()
-      });
-    } else {
-      setError('Please select at least 2 AI models and enter an initial prompt');
-    }
-  };
-
-  const stopConversation = () => {
-    if (socket && currentConversationId) {
-      socket.emit('stopConversation', { conversationId: currentConversationId });
-    }
-    setConversationActive(false);
-    setThinkingModel(null);
-  };
-
-  const toggleApiKeyVisibility = (provider: string) => {
-    setShowApiKeys(prev => ({ ...prev, [provider]: !prev[provider] }));
-  };
-
-  const getModelName = (modelId: string) => {
-    const model = AI_MODELS.find(m => m.id === modelId);
-    return model?.name || modelId;
-  };
-
-  const getCompanyName = (companyId: string) => {
-    const company = AI_COMPANIES.find(c => c.id === companyId);
-    return company?.name || companyId;
-  };
-  
-  const getCompanyChipStyle = (companyId: string) => {
-    const company = AI_COMPANIES.find(c => c.id === companyId);
-    return {
-        backgroundColor: company?.baseColor || '#E5E7EB', // Cool Gray 200 as fallback
-        color: '#FFFFFF' // Assuming base colors are dark enough for white text
-    };
-  };
-
-  const getModelChipStyle = (modelId: string) => {
-      const model = AI_MODELS.find(m => m.id === modelId);
-      return {
-          backgroundColor: model?.chipBgColor || '#E5E7EB', // Fallback
-          color: model?.chipTextColor || '#1F2937' // Fallback
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setHaystack(content);
       };
+      reader.readAsText(file);
+    }
+  };
+
+  const toggleModelExpansion = (modelId: string) => {
+    setModelStates(prev => {
+      const newStates = new Map(prev);
+      const state = newStates.get(modelId);
+      if (state) {
+        newStates.set(modelId, {
+          ...state,
+          isExpanded: !state.isExpanded
+        });
+      }
+      return newStates;
+    });
+  };
+
+  const updateModelSetting = (modelId: string, setting: 'temperature' | 'maxTokens', value: number) => {
+    setModelStates(prev => {
+      const newStates = new Map(prev);
+      const state = newStates.get(modelId);
+      if (state) {
+        newStates.set(modelId, {
+          ...state,
+          [setting]: value
+        });
+      }
+      return newStates;
+    });
+  };
+
+  // Master control functions
+  const applyMasterTemperature = (temperature: number) => {
+    setMasterTemperature(temperature);
+    setModelStates(prev => {
+      const newStates = new Map(prev);
+      selectedModelsToShow.forEach(modelId => {
+        const state = newStates.get(modelId);
+        if (state) {
+          newStates.set(modelId, {
+            ...state,
+            temperature: temperature
+          });
+        }
+      });
+      return newStates;
+    });
+  };
+
+  const applyMasterMaxTokens = (maxTokens: number) => {
+    setMasterMaxTokens(maxTokens);
+    setModelStates(prev => {
+      const newStates = new Map(prev);
+      selectedModelsToShow.forEach(modelId => {
+        const state = newStates.get(modelId);
+        if (state) {
+          newStates.set(modelId, {
+            ...state,
+            maxTokens: maxTokens
+          });
+        }
+      });
+      return newStates;
+    });
+  };
+
+  const runNeedleTest = () => {
+    if (!socket || !haystack.trim() || !needle.trim()) {
+      setError('Please provide both haystack content and needle to search for');
+      return;
+    }
+
+    // Reset all results and set loading state - only for selected models
+    setModelStates(prev => {
+      const newStates = new Map(prev);
+      selectedModelsToShow.forEach(modelId => {
+        const state = newStates.get(modelId);
+        if (state) {
+          newStates.set(modelId, {
+            ...state,
+            isLoading: true,
+            result: null
+          });
+        }
+      });
+      return newStates;
+    });
+
+    setIsTestRunning(true);
+    setError(null);
+
+    // Prepare model configurations - only for selected models
+    const modelConfigs = selectedModelsToShow.map(modelId => {
+      const state = modelStates.get(modelId);
+      return {
+        modelId: modelId,
+        temperature: state?.temperature || 0.7,
+        maxTokens: state?.maxTokens || 1000
+      };
+    });
+
+    socket.emit('runNeedleTest', {
+      haystack: haystack.trim(),
+      needle: needle.trim(),
+      models: modelConfigs
+    });
+  };
+
+  const copyResponse = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setSuccess('Response copied to clipboard');
+  };
+
+  const getCompanyIcon = (company: string) => {
+    const icons: { [key: string]: string } = {
+      openai: '⚙',
+      google: '◆',
+      anthropic: '◈'
+    };
+    return icons[company] || '●';
   };
 
   return (
-    <ThemeProvider theme={minimalTheme}>
-      <Container maxWidth="lg" sx={{ py: 2, bgcolor: 'background.default', minHeight: '100vh' }}>
-        <Paper elevation={3} sx={{ height: 'calc(95vh - 32px)', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
-          {/* Header */}
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: '#E5E7EB' /* Cool Gray 200 */ }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ChatIcon sx={{color: theme => theme.palette.text.primary}} />
-                <Typography variant="h5" component="h1">
-                  Conversation-LLMulator
-                </Typography>
-              </Box>
-              <IconButton onClick={() => setSettingsOpen(true)} sx={{color: theme => theme.palette.text.primary}}>
-                <SettingsIcon />
-              </IconButton>
-            </Box>
-            {error && <Alert severity="error" sx={{ mt: 1, borderRadius: '4px' }}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mt: 1, borderRadius: '4px' }}>{success}</Alert>}
-          </Box>
+    <div className="terminal-container">
+      {/* Header */}
+      <div className="pixel-border" style={{ padding: '20px', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '10px', textAlign: 'center' }}>
+          NEEDLE IN THE HAYSTACK TEST
+        </h1>
+        <p style={{ textAlign: 'center', margin: 0, fontSize: '18px', opacity: 0.8 }}>
+          Test multiple LLMs' ability to find specific information within large contexts
+        </p>
+      </div>
 
-          {/* Controls */} 
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: '#E5E7EB' }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth variant="outlined">
-                  <InputLabel>Select Companies</InputLabel>
-                  <Select
-                    label="Select Companies"
-                    multiple
-                    value={selectedCompanies}
-                    onChange={handleCompanySelection}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(selected as string[]).map((value) => {
-                            const style = getCompanyChipStyle(value);
-                            return (
-                                <Chip key={value} label={getCompanyName(value)} sx={{backgroundColor: style.backgroundColor, color: style.color}} />
-                            );
-                        })}
-                      </Box>
-                    )}
-                  >
-                    {AI_COMPANIES.map((company) => (
-                      <MenuItem key={company.id} value={company.id} sx={{backgroundColor: company.baseColor, color: '#FFFFFF', '&.Mui-selected': {backgroundColor: company.baseColor, color: '#FFFFFF'}, '&:hover': {backgroundColor: company.baseColor, opacity: 0.8}}}>
-                        {company.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth variant="outlined" disabled={selectedCompanies.length === 0}>
-                  <InputLabel>Select AI Models</InputLabel>
-                  <Select
-                    label="Select AI Models"
-                    multiple
-                    value={selectedModels}
-                    onChange={handleModelSelection}
-                    disabled={selectedCompanies.length === 0}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(selected as string[]).map((value) => {
-                            const style = getModelChipStyle(value);
-                            return (
-                                <Chip key={value} label={getModelName(value)} sx={{backgroundColor: style.backgroundColor, color: style.color}} />
-                            );
-                        })}
-                      </Box>
-                    )}
-                  >
-                    {availableModels.map((model) => {
-                       const style = getModelChipStyle(model.id);
-                       return (
-                        <MenuItem 
-                            key={model.id} 
-                            value={model.id} 
-                            sx={{
-                                backgroundColor: style.backgroundColor, 
-                                color: style.color,
-                                '&.Mui-selected': {
-                                    fontWeight: 'bold',
-                                }, 
-                                '&:hover': {
-                                    backgroundColor: style.backgroundColor, 
-                                    opacity: 0.8,
-                                }
-                            }}
-                        >
-                            {model.name} 
-                        </MenuItem>
-                       );
-                    })}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  variant="outlined"
-                  label="Initial Prompt"
-                  value={initialPrompt}
-                  onChange={(e) => setInitialPrompt(e.target.value)}
-                  placeholder="Enter a topic or question..."
-                  disabled={conversationActive}
-                />
-              </Grid>
-              <Grid item xs={12} md={2}>
-                {!conversationActive ? (
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="primary"
-                    startIcon={<SendIcon />}
-                    onClick={startConversation}
-                    disabled={selectedModels.length < 2 || !initialPrompt.trim()}
-                  >
-                    Start Chat
-                  </Button>
-                ) : (
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<StopIcon />}
-                    onClick={stopConversation}
-                  >
-                    Stop
-                  </Button>
-                )}
-              </Grid>
-            </Grid>
-          </Box>
+      {/* Master Controls */}
+      <div className="pixel-border" style={{ padding: '15px', marginBottom: '20px' }}>
+        <h3 style={{ fontSize: '16px', margin: '0 0 15px 0' }}>MASTER CONTROLS</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div>
+            <label style={{ fontSize: '14px', display: 'block', marginBottom: '5px' }}>
+              MASTER TEMPERATURE: {masterTemperature}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={masterTemperature}
+              onChange={(e) => applyMasterTemperature(parseFloat(e.target.value))}
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '14px', display: 'block', marginBottom: '5px' }}>
+              MASTER MAX TOKENS: {masterMaxTokens}
+            </label>
+            <input
+              type="range"
+              min="100"
+              max="4000"
+              step="100"
+              value={masterMaxTokens}
+              onChange={(e) => applyMasterMaxTokens(parseInt(e.target.value))}
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+      </div>
 
-          {/* Chat Messages */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-            {messages.length === 0 && !conversationActive && (
-              <Box sx={{ textAlign: 'center', mt: 4 }}>
-                <Typography variant="h6" color="text.secondary">
-                  Welcome to Conversation-LLMulator
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Configure API keys, select AI models, and start a conversation!
-                </Typography>
-              </Box>
+      {/* Input Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        {/* Haystack Input */}
+        <div className="pixel-border" style={{ padding: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+            <img src={HAYSTACK_IMAGE} alt="Haystack" style={{ width: '30px', height: '30px', marginRight: '10px' }} />
+            <h2 style={{ fontSize: '18px', margin: 0 }}>HAYSTACK</h2>
+          </div>
+          <textarea
+            className="terminal-input"
+            style={{ width: '100%', height: '100px', resize: 'vertical' }}
+            placeholder="Paste your large text here or upload a file..."
+            value={haystack}
+            onChange={(e) => setHaystack(e.target.value)}
+          />
+          <div style={{ marginTop: '10px' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              accept=".txt,.md,.json,.csv"
+            />
+            <button
+              className="farm-button"
+              style={{ fontSize: '18px', padding: '8px 16px' }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              UPLOAD FILE
+            </button>
+            {uploadedFile && (
+              <span style={{ marginLeft: '10px', fontSize: '16px' }}>
+                {uploadedFile.name}
+              </span>
             )}
+          </div>
+        </div>
 
-            {messages.map((message) => {
-              const getMessageClass = (provider: string, role: 'user' | 'ai') => {
-                if (role === 'user') return 'message-user';
-                
-                const model = AI_MODELS.find(m => m.id === provider);
-                if (model) {
-                  if (model.company === 'openai') return 'message-openai';
-                  if (model.company === 'google') return 'message-google';
-                  if (model.company === 'anthropic') return 'message-anthropic';
-                }
-                return 'message-bubble'; // fallback
-              };
+        {/* Needle Input */}
+        <div className="pixel-border" style={{ padding: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+            <img src={NEEDLE_IMAGE} alt="Needle" style={{ width: '20px', height: '30px', marginRight: '10px' }} />
+            <h2 style={{ fontSize: '18px', margin: 0 }}>NEEDLE</h2>
+          </div>
+          <textarea
+            className="terminal-input"
+            style={{ width: '100%', height: '100px', resize: 'vertical' }}
+            placeholder="What to find..."
+            value={needle}
+            onChange={(e) => setNeedle(e.target.value)}
+          />
+          <button
+            className="farm-button"
+            style={{ width: '100%', marginTop: '10px', fontSize: '20px' }}
+            onClick={runNeedleTest}
+            disabled={isTestRunning || !haystack.trim() || !needle.trim()}
+          >
+            {isTestRunning ? 'RUNNING...' : 'RUN TEST'}
+          </button>
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={message.id}
-                  className={`message-bubble ${getMessageClass(message.provider, message.role)}`}
-                >
-                  <div style={{ 
-                    fontFamily: 'JetBrains Mono, monospace', 
-                    fontSize: '11px', 
-                    fontWeight: 600, 
-                    opacity: 0.7, 
-                    marginBottom: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {message.role === 'user' ? '> user' : `> ${getModelName(message.provider)}`}
-                  </div>
-                  <div style={{ 
-                    lineHeight: 1.6, 
-                    fontSize: '14px',
-                    whiteSpace: 'pre-wrap' 
-                  }}>
-                    {message.content}
-                  </div>
-                  <div style={{ 
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '10px', 
-                    opacity: 0.5, 
-                    marginTop: '8px',
-                    textAlign: 'right'
-                  }}>
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-              );
-            })}
+      {/* Status Messages */}
+      {error && (
+        <div className="farm-alert farm-alert-error" style={{ marginBottom: '20px' }}>
+          <span className="terminal-chevron">&gt;</span> {error}
+        </div>
+      )}
+      {success && (
+        <div className="farm-alert farm-alert-success" style={{ marginBottom: '20px' }}>
+          <span className="terminal-chevron">&gt;</span> {success}
+        </div>
+      )}
 
-            {thinkingModel && (
-              <div className="thinking-indicator">
-                <span>{getModelName(thinkingModel)} is thinking</span>
-                <div className="typing-dots">
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </Box>
-        </Paper>
-      </Container>
-      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} PaperProps={{sx: {borderRadius: '8px'}}} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{borderBottom: `1px solid ${minimalTheme.palette.background.default}`, color: 'text.primary'}}>API Key Settings</DialogTitle>
-        <DialogContent sx={{pt: '20px !important'}}>
-          {(Object.keys(apiKeys) as Array<keyof ApiKeys>).map((provider) => (
-            <Box key={provider} sx={{ mb: 2.5 }}>
-              <Typography variant="h6" gutterBottom sx={{color: 'text.primary', fontSize: '1.1rem', mb: 1.5}}>{AI_COMPANIES.find(c=>c.apiKeyField === provider)?.name || provider.charAt(0).toUpperCase() + provider.slice(1)} API Key</Typography>
-              <TextField
-                fullWidth
-                variant="outlined"
-                type={showApiKeys[provider] ? 'text' : 'password'}
-                value={apiKeys[provider]}
-                onChange={(e) => handleApiKeyChange(provider, e.target.value)}
-                placeholder={`Enter your ${AI_COMPANIES.find(c=>c.apiKeyField === provider)?.name || provider} API key`}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton onClick={() => toggleApiKeyVisibility(provider)} edge="end" sx={{color: 'text.secondary'}}>
-                      {showApiKeys[provider] ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  )
+      {/* Model Selection */}
+      <div className="pixel-border" style={{ padding: '15px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: '16px', margin: 0 }}>SELECT MODELS</h3>
+          <div>
+            <button
+              className="farm-button"
+              style={{ fontSize: '16px', padding: '6px 12px', marginRight: '10px' }}
+              onClick={() => setSelectedModelsToShow(AI_MODELS.map(m => m.id))}
+            >
+              ALL
+            </button>
+            <button
+              className="farm-button"
+              style={{ fontSize: '16px', padding: '6px 12px', marginRight: '10px' }}
+              onClick={() => setSelectedModelsToShow([])}
+            >
+              NONE
+            </button>
+            <button
+              className="farm-button"
+              style={{ fontSize: '16px', padding: '6px 12px' }}
+              onClick={() => setSettingsOpen(!settingsOpen)}
+            >
+              API KEYS
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+          {AI_MODELS.map(model => (
+            <label key={model.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={selectedModelsToShow.includes(model.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedModelsToShow([...selectedModelsToShow, model.id]);
+                  } else {
+                    setSelectedModelsToShow(selectedModelsToShow.filter(id => id !== model.id));
+                  }
                 }}
+                style={{ marginRight: '8px', width: '16px', height: '16px' }}
               />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => saveApiKey(provider)}
-                sx={{ mt: 1 }}
-              >
-                Save {AI_COMPANIES.find(c=>c.apiKeyField === provider)?.name || provider.charAt(0).toUpperCase() + provider.slice(1)} Key
-              </Button>
-            </Box>
+              <span style={{ fontSize: '16px' }}>
+                {getCompanyIcon(model.company)} {model.name}
+              </span>
+            </label>
           ))}
-        </DialogContent>
-        <DialogActions sx={{borderTop: `1px solid ${minimalTheme.palette.background.default}`, px:3, py:2}}>
-          <Button onClick={() => setSettingsOpen(false)} variant="outlined">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </ThemeProvider>
+        </div>
+      </div>
+
+      {/* Model Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+        {AI_MODELS.filter(model => selectedModelsToShow.includes(model.id)).map((model) => {
+          const state = modelStates.get(model.id);
+          if (!state) return null;
+
+          return (
+            <div key={model.id} className="model-card">
+              <div className="model-card-header">
+                <div>
+                  <span style={{ fontSize: '14px', opacity: 0.8 }}>
+                    {getCompanyIcon(model.company)} {model.company}
+                  </span>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                    {model.name}
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleModelExpansion(model.id)}
+                  className="farm-button"
+                  style={{ 
+                    fontSize: '16px',
+                    padding: '4px 8px',
+                    minWidth: '40px'
+                  }}
+                >
+                  {state.isExpanded ? '▼' : '▶'}
+                </button>
+              </div>
+
+              {state.isExpanded && (
+                <div style={{ padding: '10px', borderBottom: '3px solid var(--farm-green)', background: 'var(--farm-dark-beige)' }}>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '14px' }}>
+                      TEMP: {state.temperature}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={state.temperature}
+                      onChange={(e) => updateModelSetting(model.id, 'temperature', parseFloat(e.target.value))}
+                      style={{ width: '100%', marginTop: '5px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '14px' }}>
+                      TOKENS: {state.maxTokens}
+                    </label>
+                    <input
+                      type="range"
+                      min="100"
+                      max="4000"
+                      step="100"
+                      value={state.maxTokens}
+                      onChange={(e) => updateModelSetting(model.id, 'maxTokens', parseInt(e.target.value))}
+                      style={{ width: '100%', marginTop: '5px' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="model-card-content">
+                {state.isLoading ? (
+                  <div className="status-loading">
+                    SEARCHING<span className="loading-dots"></span>
+                  </div>
+                ) : state.result ? (
+                  <div style={{ width: '100%' }}>
+                    <div className={state.result.foundNeedle ? 'status-found' : 'status-not-found'}>
+                      {state.result.foundNeedle ? '✓ FOUND!' : '✗ NOT FOUND'}
+                    </div>
+                    
+                    {/* Enhanced Metrics */}
+                    <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                      <div>⏱️ {state.result.responseTime}ms</div>
+                      <div>📝 {state.result.wordCount || 0} words</div>
+                      <div>📏 {state.result.characterCount || 0} chars</div>
+                      <div>🔤 {state.result.sentenceCount || 0} sentences</div>
+                      <div style={{ gridColumn: '1 / -1' }}>📖 ~{state.result.readingTime || 0} min read</div>
+                    </div>
+                    
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '10px',
+                      background: 'var(--farm-dark-beige)',
+                      border: '2px solid var(--farm-green)',
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      fontSize: '14px',
+                      textAlign: 'left'
+                    }}>
+                      {state.result.response}
+                    </div>
+                    <button
+                      className="farm-button"
+                      style={{ fontSize: '14px', padding: '4px 8px', marginTop: '10px' }}
+                      onClick={() => copyResponse(state.result!.response)}
+                    >
+                      COPY
+                    </button>
+                  </div>
+                ) : (
+                  <div className="status-ready">READY</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* API Keys Dialog */}
+      {settingsOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="pixel-border" style={{
+            background: 'var(--farm-beige)',
+            padding: '20px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
+            <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>API KEY SETTINGS</h2>
+            {(['openai', 'google', 'anthropic'] as const).map((provider) => (
+              <div key={provider} style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '16px', textTransform: 'uppercase' }}>
+                  {provider} API KEY
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    type={showApiKeys[provider] ? 'text' : 'password'}
+                    className="terminal-input"
+                    style={{ flex: 1 }}
+                    value={apiKeys[provider]}
+                    onChange={(e) => handleApiKeyChange(provider, e.target.value)}
+                    placeholder={`Enter ${provider} API key`}
+                  />
+                  <button
+                    className="farm-button"
+                    style={{ fontSize: '16px', padding: '8px 12px' }}
+                    onClick={() => setShowApiKeys(prev => ({ ...prev, [provider]: !prev[provider] }))}
+                  >
+                    {showApiKeys[provider] ? 'HIDE' : 'SHOW'}
+                  </button>
+                </div>
+                <button
+                  className="farm-button"
+                  style={{ marginTop: '10px', fontSize: '16px' }}
+                  onClick={() => saveApiKey(provider)}
+                  disabled={!apiKeys[provider]}
+                >
+                  SAVE {provider.toUpperCase()} KEY
+                </button>
+              </div>
+            ))}
+            <button
+              className="farm-button"
+              style={{ width: '100%', marginTop: '20px', fontSize: '18px' }}
+              onClick={() => setSettingsOpen(false)}
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

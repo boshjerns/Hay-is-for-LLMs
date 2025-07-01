@@ -1,412 +1,333 @@
-/* Import Google Fonts for coding aesthetic */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+/* Import retro terminal fonts */
+@import url('https://fonts.googleapis.com/css2?family=VT323:wght@400&family=Press+Start+2P:wght@400&display=swap');
 
-/* Root variables for consistent theming */
+/* Farming color palette */
 :root {
-  /* Glassmorphic Gray Palette */
-  --gray-50: #fafafa;
-  --gray-100: #f5f5f5;
-  --gray-200: #e5e5e5;
-  --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
-  --gray-500: #737373;
-  --gray-600: #525252;
-  --gray-700: #404040;
-  --gray-800: #262626;
-  --gray-900: #171717;
-  --gray-950: #0a0a0a;
-  
-  /* Glassmorphic effects */
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: rgba(0, 0, 0, 0.1);
-  --backdrop-blur: blur(20px);
-  
-  /* Accent colors for AI models */
-  --openai-glass: rgba(16, 163, 127, 0.15);
-  --google-glass: rgba(66, 133, 244, 0.15);
-  --anthropic-glass: rgba(255, 107, 53, 0.15);
-  --user-glass: rgba(99, 102, 241, 0.15);
+  --farm-beige: #F4F1D8;
+  --farm-dark-beige: #E8E3CA;
+  --farm-green: #4A7C59;
+  --farm-dark-green: #2E5A3E;
+  --farm-brown: #8B4513;
+  --farm-text: #2C3E50;
+  --farm-shadow: rgba(139, 69, 19, 0.3);
 }
 
-/* Global styles with glassmorphic background */
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  
-  /* Glassmorphic gradient background */
-  background: linear-gradient(135deg, 
-    var(--gray-100) 0%, 
-    var(--gray-200) 25%, 
-    var(--gray-300) 50%, 
-    var(--gray-200) 75%, 
-    var(--gray-100) 100%);
+  padding: 20px;
+  font-family: 'VT323', monospace;
+  background: linear-gradient(135deg, var(--farm-beige) 0%, var(--farm-dark-beige) 100%);
   background-attachment: fixed;
-  color: var(--gray-800);
+  color: var(--farm-text);
+  font-size: 18px;
   min-height: 100vh;
-  
-  /* Subtle animated noise texture for depth */
+  line-height: 1.4;
+}
+
+.terminal-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--farm-beige);
+  padding: 20px;
+  box-shadow: 
+    0 0 0 3px var(--farm-brown),
+    0 0 20px var(--farm-shadow);
+}
+
+/* Pixel perfect borders */
+.pixel-border {
+  background: var(--farm-beige);
+  border: 3px solid var(--farm-brown);
   position: relative;
 }
 
-body::before {
+.pixel-border::before {
   content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.03;
-  background-image: 
-    radial-gradient(circle at 1px 1px, var(--gray-900) 1px, transparent 0);
-  background-size: 20px 20px;
-  pointer-events: none;
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  background: var(--farm-brown);
   z-index: -1;
 }
 
-/* Code font styling */
-code, .code-font {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, 'Cascadia Code', 
-               'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-feature-settings: 'liga' 1, 'calt' 1;
+/* Terminal buttons */
+.farm-button {
+  background: var(--farm-green);
+  color: white;
+  border: 3px solid var(--farm-dark-green);
+  padding: 8px 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  position: relative;
+  transition: all 0.1s;
 }
 
-/* Reset and base styles */
-* {
+.farm-button:hover {
+  background: var(--farm-dark-green);
+  border-color: var(--farm-brown);
+  transform: translate(1px, 1px);
+}
+
+.farm-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.farm-button:disabled {
+  background: #999;
+  border-color: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.farm-button:disabled:hover {
+  transform: none;
+  background: #999;
+  border-color: #666;
+}
+
+/* Terminal inputs */
+.terminal-input {
+  background: var(--farm-dark-beige);
+  border: 3px solid var(--farm-brown);
+  padding: 10px;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--farm-text);
+  outline: none;
   box-sizing: border-box;
 }
 
-/* Main chat container with glassmorphic styling */
-.chat-container {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: var(--backdrop-blur);
+.terminal-input:focus {
+  border-color: var(--farm-green);
+  background: white;
+}
+
+.terminal-input::placeholder {
+  color: #8B4513;
+  opacity: 0.7;
+}
+
+/* Terminal chevron */
+.terminal-chevron {
+  color: var(--farm-green);
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+/* Alert boxes */
+.farm-alert {
+  padding: 15px;
+  margin: 10px 0;
+  border: 3px solid;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+}
+
+.farm-alert-success {
+  background: #D4F6DC;
+  border-color: var(--farm-green);
+  color: var(--farm-dark-green);
+}
+
+.farm-alert-error {
+  background: #FFE5E5;
+  border-color: #CC0000;
+  color: #CC0000;
+}
+
+/* Model Cards */
+.model-card {
+  background: var(--farm-beige);
+  border: 3px solid var(--farm-brown);
+  margin-bottom: 10px;
+  font-family: 'VT323', monospace;
   position: relative;
+  overflow: hidden;
 }
 
-/* Header glassmorphic styling */
-.MuiPaper-root {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: 
-    0 8px 32px var(--glass-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Control panel glassmorphic cards */
-.MuiCard-root {
-  background: rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 16px !important;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.MuiCard-root:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Input fields with glassmorphic styling */
-.MuiOutlinedInput-root {
-  background: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border-radius: 12px !important;
-  font-family: 'Inter', sans-serif !important;
-}
-
-.MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
-  border-color: var(--glass-border) !important;
-  border-width: 1px !important;
-}
-
-.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  border-width: 2px !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
-}
-
-/* Buttons with glassmorphic styling */
-.MuiButton-root {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 12px !important;
-  color: var(--gray-700) !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-.MuiButton-root:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 
-    0 6px 20px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-}
-
-.MuiButton-contained {
-  background: linear-gradient(135deg, 
-    rgba(99, 102, 241, 0.8), 
-    rgba(79, 70, 229, 0.8)) !important;
-  color: white !important;
-  border: 1px solid rgba(99, 102, 241, 0.3) !important;
-}
-
-/* Message bubbles with enhanced glassmorphic design */
-.message-bubble {
-  max-width: 75%;
-  margin: 12px 16px;
-  padding: 16px 20px;
-  border-radius: 20px;
-  word-wrap: break-word;
-  line-height: 1.5;
-  font-size: 14px;
-  position: relative;
-  backdrop-filter: var(--backdrop-blur);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.message-bubble:hover {
-  transform: translateY(-1px);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-/* AI Model specific glassmorphic styling */
-.message-openai {
-  background: linear-gradient(135deg, 
-    rgba(16, 163, 127, 0.15), 
-    rgba(5, 150, 105, 0.1));
-  color: var(--gray-800);
-  align-self: flex-start;
-  border-left: 3px solid rgba(16, 163, 127, 0.4);
-}
-
-.message-google {
-  background: linear-gradient(135deg, 
-    rgba(66, 133, 244, 0.15), 
-    rgba(37, 99, 235, 0.1));
-  color: var(--gray-800);
-  align-self: flex-start;
-  border-left: 3px solid rgba(66, 133, 244, 0.4);
-}
-
-.message-anthropic {
-  background: linear-gradient(135deg, 
-    rgba(255, 107, 53, 0.15), 
-    rgba(234, 88, 12, 0.1));
-  color: var(--gray-800);
-  align-self: flex-start;
-  border-left: 3px solid rgba(255, 107, 53, 0.4);
-}
-
-.message-user {
-  background: linear-gradient(135deg, 
-    rgba(99, 102, 241, 0.2), 
-    rgba(79, 70, 229, 0.15));
-  color: var(--gray-800);
-  align-self: flex-end;
-  border-right: 3px solid rgba(99, 102, 241, 0.4);
-}
-
-/* Enhanced thinking indicator with coder aesthetic */
-.thinking-indicator {
+.model-card-header {
+  background: var(--farm-green);
+  color: white;
+  padding: 10px 15px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  margin: 12px 16px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  max-width: 250px;
-  color: var(--gray-600);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  position: relative;
+  border-bottom: 3px solid var(--farm-brown);
 }
 
-.thinking-indicator::before {
-  content: '>';
-  color: rgba(99, 102, 241, 0.6);
-  font-weight: 700;
+.model-card-content {
+  padding: 15px;
+  text-align: center;
 }
 
-/* Animated typing dots with glassmorphic styling */
-.typing-dots {
-  display: flex;
-  gap: 6px;
+/* Status indicators */
+.status-ready {
+  color: var(--farm-text);
+  font-size: 16px;
+  padding: 20px;
 }
 
-.typing-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, 
-    var(--gray-500), 
-    var(--gray-600));
-  animation: typing 1.4s infinite ease-in-out;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+.status-loading {
+  color: var(--farm-green);
+  font-size: 18px;
+  font-weight: bold;
+  padding: 20px;
 }
 
-.typing-dot:nth-child(1) {
-  animation-delay: -0.32s;
+.status-found {
+  color: var(--farm-green);
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
 }
 
-.typing-dot:nth-child(2) {
-  animation-delay: -0.16s;
+.status-not-found {
+  color: #CC0000;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
 }
 
-.typing-dot:nth-child(3) {
-  animation-delay: 0s;
+/* Loading animation */
+.loading-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
 }
 
-@keyframes typing {
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.3;
-  }
-  40% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
 }
 
-/* Model selection chips with glassmorphic styling */
-.MuiChip-root {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  color: var(--gray-700) !important;
-  font-weight: 500 !important;
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: 11px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.MuiChip-root:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  transform: translateY(-1px) !important;
-}
-
-/* Scrollbar styling with glassmorphic design */
+/* Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 16px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: var(--farm-dark-beige);
+  border: 2px solid var(--farm-brown);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--farm-green);
+  border: 2px solid var(--farm-brown);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--farm-dark-green);
 }
 
-/* Settings icon with glassmorphic styling */
-.MuiIconButton-root {
-  background: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+/* Range sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: var(--farm-dark-beige);
+  border: 2px solid var(--farm-brown);
+  outline: none;
 }
 
-.MuiIconButton-root:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  transform: rotate(90deg) !important;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: var(--farm-green);
+  border: 2px solid var(--farm-brown);
+  cursor: pointer;
 }
 
-/* Dialog styling */
-.MuiDialog-paper {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: var(--backdrop-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 20px !important;
-  box-shadow: 
-    0 20px 60px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: var(--farm-green);
+  border: 2px solid var(--farm-brown);
+  cursor: pointer;
+  border-radius: 0;
 }
 
-/* Typography enhancements */
-.MuiTypography-h3 {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-weight: 700 !important;
-  background: linear-gradient(135deg, var(--gray-800), var(--gray-600)) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+/* Checkboxes */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--farm-brown);
+  background: var(--farm-beige);
+  position: relative;
+  cursor: pointer;
 }
 
-.MuiTypography-body1 {
-  color: var(--gray-700) !important;
+input[type="checkbox"]:checked {
+  background: var(--farm-green);
 }
 
-/* Responsive adjustments */
+input[type="checkbox"]:checked::before {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 1px;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* File input styling */
+input[type="file"] {
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
-  .message-bubble {
-    max-width: 85%;
-    margin: 8px 12px;
-    padding: 12px 16px;
-    font-size: 13px;
+  body {
+    padding: 10px;
+    font-size: 16px;
   }
   
-  .thinking-indicator {
-    margin: 8px 12px;
-    padding: 10px 14px;
-    font-size: 11px;
+  .terminal-container {
+    padding: 15px;
+  }
+  
+  .farm-button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+  
+  .terminal-input {
+    font-size: 16px;
   }
 }
 
-/* Subtle hover animations for interactive elements */
-.MuiFormControl-root:hover,
-.MuiInputBase-root:hover {
-  transform: translateY(-1px);
-  transition: transform 0.2s ease;
-}
-
-/* Loading animation for glassmorphic elements */
-@keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
+/* Remove Material UI styles completely */
+.MuiBox-root,
+.MuiContainer-root,
+.MuiPaper-root,
+.MuiCard-root,
+.MuiCardContent-root,
+.MuiTypography-root,
+.MuiButton-root,
+.MuiTextField-root,
+.MuiSelect-root,
+.MuiFormControl-root,
+.MuiInputLabel-root,
+.MuiOutlinedInput-root,
+.MuiChip-root,
+.MuiDialog-root,
+.MuiDialogTitle-root,
+.MuiDialogContent-root,
+.MuiDialogActions-root,
+.MuiIconButton-root,
+.MuiSwitch-root,
+.MuiSlider-root {
+  display: none !important;
 } 
