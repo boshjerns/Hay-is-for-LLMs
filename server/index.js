@@ -565,13 +565,9 @@ Your response should be concise and focused only on finding the needle.`;
         
         const responseTime = Date.now() - startTime;
         
-        // Simple check if needle was found (can be enhanced with better detection)
-        const foundNeedle = this.checkIfNeedleFound(response, needle);
-        
         const result = {
           modelId: modelConfig.modelId,
           response,
-          foundNeedle,
           responseTime,
           timestamp: new Date().toISOString()
         };
@@ -601,57 +597,7 @@ Your response should be concise and focused only on finding the needle.`;
     this.activeTests.delete(testId);
   }
 
-  checkIfNeedleFound(response, needle) {
-    // Simple heuristic - check if the response mentions finding the information
-    // and doesn't say it wasn't found
-    const responseLower = response.toLowerCase();
-    const needleLower = needle.toLowerCase();
-    
-    // Negative indicators
-    const notFoundPhrases = [
-      'not found',
-      'cannot find',
-      'could not find',
-      'unable to find',
-      'no mention',
-      'does not contain',
-      'doesn\'t contain',
-      'not present',
-      'not in the text',
-      'not in the haystack'
-    ];
-    
-    const hasNegativeIndicator = notFoundPhrases.some(phrase => 
-      responseLower.includes(phrase)
-    );
-    
-    if (hasNegativeIndicator) {
-      return false;
-    }
-    
-    // Positive indicators
-    const foundPhrases = [
-      'found',
-      'located',
-      'appears',
-      'mentions',
-      'states',
-      'contains',
-      'includes',
-      'says'
-    ];
-    
-    const hasPositiveIndicator = foundPhrases.some(phrase => 
-      responseLower.includes(phrase)
-    );
-    
-    // Also check if some key words from the needle appear in the response
-    const needleWords = needleLower.split(/\s+/).filter(word => word.length > 3);
-    const matchedWords = needleWords.filter(word => responseLower.includes(word));
-    const matchRatio = matchedWords.length / needleWords.length;
-    
-    return hasPositiveIndicator || matchRatio > 0.5;
-  }
+
 }
 
 const needleTestManager = new NeedleTestManager(aiManager);

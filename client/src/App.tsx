@@ -4,7 +4,6 @@ import { io, Socket } from 'socket.io-client';
 interface NeedleTestResult {
   modelId: string;
   response: string;
-  foundNeedle: boolean;
   responseTime: number;
   timestamp: string;
   wordCount?: number;
@@ -193,7 +192,6 @@ function App() {
             result: {
               modelId,
               response: `Error: ${error}`,
-              foundNeedle: false,
               responseTime: 0,
               timestamp: new Date().toISOString(),
               wordCount: 0,
@@ -636,8 +634,8 @@ function App() {
                   </div>
                 ) : state.result ? (
                   <div style={{ width: '100%' }}>
-                    <div className={state.result.foundNeedle ? 'status-found' : 'status-not-found'}>
-                      {state.result.foundNeedle ? '✓ FOUND!' : '✗ NOT FOUND'}
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--farm-green)', marginBottom: '10px' }}>
+                      RESPONSE RECEIVED
                     </div>
                     
                     {/* Enhanced Metrics */}
