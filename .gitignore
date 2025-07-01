@@ -109,6 +109,12 @@ Thumbs.db
 api_keys.json
 *.key
 *.pem
+**/api_keys.json
+server/api_keys.json
+
+# User session data
+session_*.json
+user_data/
 
 # Local development
 .env.example 

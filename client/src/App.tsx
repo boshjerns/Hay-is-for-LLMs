@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 import mammoth from 'mammoth';
 import { read, utils } from 'xlsx';
 import Papa from 'papaparse';
@@ -274,7 +274,7 @@ const processTextFile = async (file: File): Promise<string> => {
 };
 
 function App() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<any>(null);
   const [haystack, setHaystack] = useState('');
   const [needle, setNeedle] = useState('');
   const [exactMatch, setExactMatch] = useState('');
@@ -301,6 +301,11 @@ function App() {
   const [wordCount, setWordCount] = useState(1000);
   const [difficulty, setDifficulty] = useState('intermediate');
   const [topic, setTopic] = useState('');
+
+  // Modal state for expanded response view
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalResult, setModalResult] = useState<NeedleTestResult | null>(null);
+  const [modalModel, setModalModel] = useState<AIModel | null>(null);
 
   // Initialize model states
   useEffect(() => {
@@ -335,7 +340,7 @@ function App() {
       setSuccess('Connected to server');
     });
 
-    newSocketInstance.on('apiKeySet', ({ provider, success, sessionId: returnedSessionId }) => {
+    newSocketInstance.on('apiKeySet', ({ provider, success, sessionId: returnedSessionId }: { provider: string, success: boolean, sessionId: string }) => {
       if (success) {
         setSuccess(`${provider} API key set successfully`);
         if (returnedSessionId) {
@@ -370,7 +375,7 @@ function App() {
       });
     });
 
-    newSocketInstance.on('needleTestError', ({ modelId, error }) => {
+    newSocketInstance.on('needleTestError', ({ modelId, error }: { modelId: string, error: string }) => {
       setModelStates(prev => {
         const newStates = new Map(prev);
         const state = newStates.get(modelId);
@@ -400,13 +405,13 @@ function App() {
       setSuccess('All tests completed!');
     });
 
-    newSocketInstance.on('error', ({ message }) => {
+    newSocketInstance.on('error', ({ message }: { message: string }) => {
       setError(message);
       // Also reset generating state if there's a general error
       setIsGenerating(false);
     });
 
-    newSocketInstance.on('testContentGenerated', ({ haystack, needle, exactMatch, success, error }) => {
+    newSocketInstance.on('testContentGenerated', ({ haystack, needle, exactMatch, success, error }: { haystack: string, needle: string, exactMatch: string, success: boolean, error?: string }) => {
       console.log('📥 Received testContentGenerated event:', {
         haystackLength: haystack?.length,
         needleLength: needle?.length,
@@ -565,7 +570,7 @@ function App() {
     });
 
     setIsTestRunning(true);
-    setError(null);
+      setError(null);
 
     // Prepare model configurations - only for selected models
     const modelConfigs = selectedModelsToShow.map(modelId => {
@@ -721,24 +726,58 @@ function App() {
     return '●';
   };
 
+  // Modal functions
+  const openModal = (result: NeedleTestResult, model: AIModel) => {
+    setModalResult(result);
+    setModalModel(model);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalResult(null);
+    setModalModel(null);
+  };
+
+  // Handle keyboard shortcuts for modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalOpen) {
+        closeModal();
+      }
+    };
+
+    if (modalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
+
   return (
     <div className="terminal-container">
           {/* Header */}
       <div className="pixel-border" style={{ padding: '20px', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '10px', textAlign: 'center' }}>
-          NEEDLE IN THE HAYSTACK TEST
+        <h1 style={{ fontSize: '32px', marginBottom: '10px', textAlign: 'center', fontWeight: 'bold' }}>
+          🚜 HAY IS FOR LLMS 🌾
         </h1>
         <p style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '18px', opacity: 0.8 }}>
-          Test multiple LLMs' ability to find specific information within large contexts
+          👨‍🌾 Test multiple AI language models' ability to find needles in haystacks of information 🔍
         </p>
         <div style={{ textAlign: 'center', fontSize: '14px', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          <span>Testing models from:</span>
+          <span>🏗️ Testing AI models from:</span>
           <img src={OPENAI_LOGO} alt="OpenAI" style={{ width: '16px', height: '16px', verticalAlign: 'middle' }} />
           <span style={{ fontSize: '12px' }}>OpenAI</span>
           <img src={GOOGLE_LOGO} alt="Google" style={{ width: '16px', height: '16px', verticalAlign: 'middle' }} />
           <span style={{ fontSize: '12px' }}>Google</span>
           <img src={ANTHROPIC_LOGO} alt="Anthropic" style={{ width: '16px', height: '16px', verticalAlign: 'middle' }} />
           <span style={{ fontSize: '12px' }}>Anthropic</span>
+          <span>🌽</span>
         </div>
       </div>
 
@@ -846,8 +885,20 @@ function App() {
             value={exactMatch}
             onChange={(e) => setExactMatch(e.target.value)}
           />
-          <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '5px' }}>
+          <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '5px', marginBottom: '10px' }}>
             💡 Use specific phrases, numbers, or regulations for accurate detection
+          </div>
+          <button
+            className="farm-button"
+            style={{ width: '100%', fontSize: '16px', padding: '8px' }}
+            onClick={recheckExactMatches}
+            disabled={isTestRunning || !exactMatch.trim()}
+            title="Re-evaluate existing responses against the current exact match text without running new tests"
+          >
+            🔄 RECHECK MATCHES
+          </button>
+          <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '5px', textAlign: 'center' }}>
+            ⚡ Test different exact match criteria against existing responses
           </div>
         </div>
 
@@ -948,7 +999,7 @@ function App() {
       </div>
 
       {/* Run Test Button */}
-      <div style={{ marginBottom: '20px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
         <button
           className="farm-button"
           style={{ fontSize: '24px', padding: '15px 30px' }}
@@ -957,20 +1008,6 @@ function App() {
         >
           {isTestRunning ? 'RUNNING TESTS...' : 'RUN NEEDLE TEST'}
         </button>
-        <button
-          className="farm-button"
-          style={{ fontSize: '20px', padding: '12px 24px' }}
-          onClick={recheckExactMatches}
-          disabled={isTestRunning || !exactMatch.trim()}
-          title="Re-evaluate existing responses against the current exact match text without running new tests"
-        >
-          🔄 RECHECK MATCHES
-        </button>
-      </div>
-      
-      {/* Helper text for recheck button */}
-      <div style={{ textAlign: 'center', fontSize: '14px', opacity: 0.7, marginBottom: '20px' }}>
-        💡 Use "RECHECK MATCHES" to quickly test different exact match criteria against existing responses
       </div>
 
       {/* Status Messages */}
@@ -1011,7 +1048,7 @@ function App() {
             >
               API KEYS
             </button>
-          </div>
+                  </div>
         </div>
         <div style={{ marginTop: '15px' }}>
           {/* Group models by company */}
@@ -1019,17 +1056,17 @@ function App() {
             const companyModels = AI_MODELS.filter(model => model.company === company);
             const companyName = company === 'openai' ? 'OpenAI' : company === 'google' ? 'Google' : 'Anthropic';
             const companyIcon = getCompanyIcon(company);
-            
-            return (
+
+              return (
               <div key={company} style={{ marginBottom: '20px' }}>
-                <div style={{ 
+                  <div style={{ 
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   marginBottom: '10px'
                 }}>
                   <h4 style={{ 
-                    fontSize: '14px', 
+                    fontSize: '14px',
                     margin: 0, 
                     color: '#8B4513',
                     display: 'flex',
@@ -1064,8 +1101,8 @@ function App() {
                       NONE
                     </button>
                   </div>
-                </div>
-                <div style={{ 
+                  </div>
+                  <div style={{ 
                   height: '2px',
                   backgroundColor: '#8B4513',
                   marginBottom: '10px'
@@ -1103,10 +1140,10 @@ function App() {
                       </span>
                     </label>
                   ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
 
@@ -1169,9 +1206,9 @@ function App() {
                       onChange={(e) => updateModelSetting(model.id, 'maxTokens', parseInt(e.target.value))}
                       style={{ width: '100%', marginTop: '5px' }}
                     />
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
               <div className="model-card-content">
                 {state.isLoading ? (
@@ -1179,7 +1216,20 @@ function App() {
                     SEARCHING<span className="loading-dots"></span>
                   </div>
                 ) : state.result ? (
-                  <div style={{ width: '100%' }}>
+                  <div 
+                    style={{ 
+                      width: '100%',
+                      cursor: 'pointer',
+                      padding: '5px',
+                      margin: '-5px',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onClick={() => openModal(state.result!, model)}
+                    title="Click anywhere to view full response"
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(139, 69, 19, 0.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
                     <div className={state.result.foundNeedle ? 'status-found' : 'status-not-found'}>
                       {state.result.foundNeedle ? '✓ EXACT MATCH FOUND!' : '✗ EXACT MATCH NOT FOUND'}
                     </div>
@@ -1196,24 +1246,62 @@ function App() {
                     <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px', marginBottom: '5px' }}>
                       📝 MODEL RESPONSE:
                   </div>
-                  <div style={{ 
+                  <div 
+                    style={{ 
                       padding: '10px',
                       background: 'var(--farm-dark-beige)',
                       border: '2px solid var(--farm-green)',
                       maxHeight: '120px',
                       overflowY: 'auto',
                       fontSize: '14px',
-                      textAlign: 'left'
-                    }}>
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openModal(state.result!, model);
+                    }}
+                    title="Click to view full response in larger window"
+                    onMouseEnter={(e) => e.currentTarget.style.border = '2px solid var(--farm-brown)'}
+                    onMouseLeave={(e) => e.currentTarget.style.border = '2px solid var(--farm-green)'}
+                  >
                       {state.result.response}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '5px',
+                        right: '5px',
+                        fontSize: '12px',
+                        opacity: 0.6,
+                        background: 'var(--farm-beige)',
+                        padding: '2px 4px',
+                        borderRadius: '2px'
+                      }}>
+                        🔍 Click to expand
+                      </div>
                     </div>
-                    <button
-                      className="farm-button"
-                      style={{ fontSize: '14px', padding: '4px 8px', marginTop: '10px' }}
-                      onClick={() => copyResponse(state.result!.response)}
-                    >
-                      COPY
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                      <button
+                        className="farm-button"
+                        style={{ fontSize: '14px', padding: '4px 8px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyResponse(state.result!.response);
+                        }}
+                      >
+                        COPY
+                      </button>
+                      <button
+                        className="farm-button"
+                        style={{ fontSize: '14px', padding: '4px 8px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openModal(state.result!, model);
+                        }}
+                      >
+                        📖 VIEW FULL
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="status-ready">READY</div>
@@ -1254,11 +1342,11 @@ function App() {
                 </label>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <input
-                    type={showApiKeys[provider] ? 'text' : 'password'}
+                type={showApiKeys[provider] ? 'text' : 'password'}
                     className="terminal-input"
                     style={{ flex: 1 }}
-                    value={apiKeys[provider]}
-                    onChange={(e) => handleApiKeyChange(provider, e.target.value)}
+                value={apiKeys[provider]}
+                onChange={(e) => handleApiKeyChange(provider, e.target.value)}
                     placeholder={`Enter ${provider} API key`}
                   />
                   <button
@@ -1272,7 +1360,7 @@ function App() {
                 <button
                   className="farm-button"
                   style={{ marginTop: '10px', fontSize: '16px' }}
-                  onClick={() => saveApiKey(provider)}
+                onClick={() => saveApiKey(provider)}
                   disabled={!apiKeys[provider]}
                 >
                   SAVE {provider.toUpperCase()} KEY
@@ -1289,6 +1377,147 @@ function App() {
                 </div>
               </div>
             )}
+
+      {/* Response Modal */}
+      {modalOpen && modalResult && modalModel && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }} onClick={closeModal}>
+          <div className="pixel-border" style={{
+            background: 'var(--farm-beige)',
+            padding: '20px',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            width: '100%',
+            height: 'auto',
+            overflowY: 'auto',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '20px',
+              borderBottom: '3px solid var(--farm-green)',
+              paddingBottom: '15px'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                  {getCompanyIcon(modalModel.company)}
+                  <h2 style={{ fontSize: '24px', margin: 0 }}>{modalModel.name}</h2>
+                </div>
+                <div className={modalResult.foundNeedle ? 'status-found' : 'status-not-found'} style={{ 
+                  fontSize: '18px',
+                  padding: '8px 12px',
+                  display: 'inline-block'
+                }}>
+                  {modalResult.foundNeedle ? '✓ EXACT MATCH FOUND!' : '✗ EXACT MATCH NOT FOUND'}
+                </div>
+              </div>
+              <button
+                className="farm-button"
+                style={{ fontSize: '24px', padding: '8px 12px', minWidth: '50px' }}
+                onClick={closeModal}
+                title="Close modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Metrics */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: '15px',
+              marginBottom: '20px',
+              padding: '15px',
+              background: 'var(--farm-dark-beige)',
+              border: '2px solid var(--farm-green)'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>RESPONSE TIME</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>⏱️ {modalResult.responseTime}ms</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>WORD COUNT</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>📝 {modalResult.wordCount || 0}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>CHARACTERS</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>📏 {modalResult.characterCount || 0}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>SENTENCES</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>🔤 {modalResult.sentenceCount || 0}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>READING TIME</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>📖 ~{modalResult.readingTime || 0} min</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>TIMESTAMP</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                  {new Date(modalResult.timestamp).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Response Content */}
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', marginBottom: '10px' }}>📝 MODEL RESPONSE:</h3>
+              <div style={{ 
+                padding: '20px',
+                background: 'var(--farm-dark-beige)',
+                border: '3px solid var(--farm-green)',
+                fontSize: '16px',
+                lineHeight: '1.6',
+                textAlign: 'left',
+                maxHeight: '50vh',
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {modalResult.response}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              justifyContent: 'center',
+              borderTop: '2px solid var(--farm-green)',
+              paddingTop: '15px'
+            }}>
+              <button
+                className="farm-button"
+                style={{ fontSize: '16px', padding: '10px 20px' }}
+                onClick={() => copyResponse(modalResult.response)}
+              >
+                📋 COPY RESPONSE
+              </button>
+              <button
+                className="farm-button"
+                style={{ fontSize: '16px', padding: '10px 20px' }}
+                onClick={closeModal}
+              >
+                ✕ CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

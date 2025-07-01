@@ -78,12 +78,7 @@ const ENV_API_KEYS = {
 
 // Load API keys from file on startup (for user-provided keys persistence)
 function loadApiKeys() {
-  // Check which environment variables are available
-  console.log('🔍 ENVIRONMENT DEBUG:');
-  console.log('  OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `Found (${process.env.OPENAI_API_KEY.substring(0, 10)}...)` : 'Not found');
-  console.log('  GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? `Found (${process.env.GOOGLE_API_KEY.substring(0, 10)}...)` : 'Not found');
-  console.log('  ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? `Found (${process.env.ANTHROPIC_API_KEY.substring(0, 10)}...)` : 'Not found');
-  
+  // Check which environment variables are available (without exposing keys)
   const envKeysAvailable = Object.entries(ENV_API_KEYS)
     .filter(([key, value]) => value)
     .map(([key]) => key);
@@ -94,7 +89,7 @@ function loadApiKeys() {
     console.log(`⚠️  No environment API keys found.`);
   }
   
-  console.log(`🔑 API Key system ready - env vars first, then user input through UI`);
+  console.log('🔑 API Key system ready - env vars first, then user input through UI');
 }
 
 // Load keys on startup
@@ -256,6 +251,9 @@ class AIModelManager {
   }
 
   async generateOpenAIResponse(messages, model = "gpt-3.5-turbo", apiType = "chat", config = {}) {
+    // Start timing for this API call
+    const apiCallStartTime = Date.now();
+    
     if (apiType === 'responses') {
       // Use the new responses API for newer models
       console.log(`🔥 Using OpenAI Responses API for model: ${model}`);
@@ -305,27 +303,41 @@ class AIModelManager {
         
         // Extract text content from response - handle different response formats
         if (response && response.output_text) {
-          console.log(`✅ Found output_text: ${response.output_text.length} characters`);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`✅ Found output_text: ${response.output_text.length} characters, API call time: ${apiCallResponseTime}ms`);
+          this.lastApiCallTime = apiCallResponseTime;
           return response.output_text;
         } else if (response && response.text && response.text.content) {
-          console.log(`✅ Found text.content: ${response.text.content.length} characters`);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`✅ Found text.content: ${response.text.content.length} characters, API call time: ${apiCallResponseTime}ms`);
+          this.lastApiCallTime = apiCallResponseTime;
           return response.text.content;
         } else if (response && response.output && response.output[0] && response.output[0].content && response.output[0].content[0] && response.output[0].content[0].text) {
-          console.log(`✅ Found output[0].content[0].text: ${response.output[0].content[0].text.length} characters`);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`✅ Found output[0].content[0].text: ${response.output[0].content[0].text.length} characters, API call time: ${apiCallResponseTime}ms`);
+          this.lastApiCallTime = apiCallResponseTime;
           return response.output[0].content[0].text;
         } else if (response && response.choices && response.choices[0]) {
           if (response.choices[0].text) {
-            console.log(`✅ Found choices[0].text: ${response.choices[0].text.length} characters`);
+            const apiCallResponseTime = Date.now() - apiCallStartTime;
+            console.log(`✅ Found choices[0].text: ${response.choices[0].text.length} characters, API call time: ${apiCallResponseTime}ms`);
+            this.lastApiCallTime = apiCallResponseTime;
             return response.choices[0].text;
           } else if (response.choices[0].message && response.choices[0].message.content) {
-            console.log(`✅ Found choices[0].message.content: ${response.choices[0].message.content.length} characters`);
+            const apiCallResponseTime = Date.now() - apiCallStartTime;
+            console.log(`✅ Found choices[0].message.content: ${response.choices[0].message.content.length} characters, API call time: ${apiCallResponseTime}ms`);
+            this.lastApiCallTime = apiCallResponseTime;
             return response.choices[0].message.content;
           }
         } else if (response && response.output && response.output.text) {
-          console.log(`✅ Found output.text: ${response.output.text.length} characters`);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`✅ Found output.text: ${response.output.text.length} characters, API call time: ${apiCallResponseTime}ms`);
+          this.lastApiCallTime = apiCallResponseTime;
           return response.output.text;
         } else if (response && response.content) {
-          console.log(`✅ Found direct content: ${response.content.length} characters`);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`✅ Found direct content: ${response.content.length} characters, API call time: ${apiCallResponseTime}ms`);
+          this.lastApiCallTime = apiCallResponseTime;
           return response.content;
         }
         
@@ -346,35 +358,42 @@ class AIModelManager {
       console.log(`💬 Using OpenAI Chat Completions API for model: ${model}`);
       
       // Create a system message to set the context for needle tests
-      const systemMessage = {
-        role: 'system',
+    const systemMessage = {
+      role: 'system',
         content: 'You are an AI assistant that provides direct, accurate answers to questions based on provided context.'
-      };
-      
-      // Format messages for OpenAI
-      const formattedMessages = [systemMessage];
-      
-      // Add conversation history
-      messages.forEach(msg => {
-        formattedMessages.push({
-          role: msg.role === 'ai' ? 'assistant' : msg.role,
-          content: msg.content
-        });
+    };
+    
+    // Format messages for OpenAI
+    const formattedMessages = [systemMessage];
+    
+    // Add conversation history
+    messages.forEach(msg => {
+      formattedMessages.push({
+        role: msg.role === 'ai' ? 'assistant' : msg.role,
+        content: msg.content
       });
-      
-      const response = await this.models.openai.chat.completions.create({
-        model: model,
-        messages: formattedMessages,
+    });
+    
+    const response = await this.models.openai.chat.completions.create({
+      model: model,
+      messages: formattedMessages,
         max_tokens: config.maxTokens || 1000,
         temperature: config.temperature || 0.7
-      });
-      
-      return response.choices[0].message.content;
+    });
+    
+    const apiCallResponseTime = Date.now() - apiCallStartTime;
+    console.log(`✅ OpenAI Chat API response time: ${apiCallResponseTime}ms`);
+    this.lastApiCallTime = apiCallResponseTime;
+    
+    return response.choices[0].message.content;
     }
   }
 
   async generateGeminiResponse(messages, modelName = "gemini-2.0-flash", config = {}) {
     console.log(`🔍 Gemini Debug - Model: ${modelName}, Messages:`, messages);
+    
+    // Start timing for this API call
+    const apiCallStartTime = Date.now();
     
     const model = this.models.gemini.getGenerativeModel({ model: modelName });
     
@@ -408,7 +427,9 @@ class AIModelManager {
       const response = await result.response;
       const responseText = response.text();
       
-      console.log(`✅ Gemini Debug - Response length: ${responseText?.length}`);
+      const apiCallResponseTime = Date.now() - apiCallStartTime;
+      console.log(`✅ Gemini Debug - Response length: ${responseText?.length}, API call time: ${apiCallResponseTime}ms`);
+      this.lastApiCallTime = apiCallResponseTime;
       
       if (!responseText || responseText.trim().length === 0) {
         throw new Error('Empty response from Gemini');
@@ -433,6 +454,36 @@ class AIModelManager {
     } else if (model.includes('v2-20241022')) {
       console.log('💻 Using Claude 3.5 Sonnet v2 with computer use capabilities');
     }
+
+    // Retry logic for overloaded errors
+    const maxRetries = 2;
+    const baseDelay = 5000; // 5 seconds
+    
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      try {
+        const result = await this._makeClaudeAPICall(messages, model, config, attempt);
+        // Return result with timing information from the successful call
+        return result;
+      } catch (error) {
+        // Only retry on 529 overloaded errors
+        if (error.status === 529 && attempt <= maxRetries) {
+          const delay = baseDelay * attempt; // Exponential backoff: 5s, 10s
+          console.log(`⏳ Claude overloaded (attempt ${attempt}/${maxRetries + 1}). Retrying in ${delay/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  async _makeClaudeAPICall(messages, model, config, attempt = 1) {
+    if (attempt > 1) {
+      console.log(`🔄 Claude API call attempt #${attempt} for model: ${model}`);
+    }
+
+    // Start timing for this specific API call attempt
+    const apiCallStartTime = Date.now();
 
     // Find the initial prompt to maintain conversation memory
     const initialPrompt = messages.find(msg => msg.provider === 'user')?.content || 'General discussion';
@@ -530,7 +581,12 @@ class AIModelManager {
         // Handle different content types
         const textContent = response.content.find(c => c.type === 'text');
         if (textContent && textContent.text) {
-          console.log('[Claude Success] Generated response length:', textContent.text.length);
+          const apiCallResponseTime = Date.now() - apiCallStartTime;
+          console.log(`[Claude Success] Generated response length: ${textContent.text.length}, API call time: ${apiCallResponseTime}ms`);
+          
+          // Store timing information for this successful call
+          this.lastApiCallTime = apiCallResponseTime;
+          
           return textContent.text;
         }
         
@@ -543,11 +599,63 @@ class AIModelManager {
       
     } catch (error) {
       console.error('[Claude API Error] Full error details:', error);
+      
+      // Handle specific error types
       if (error.response) {
         console.error('[Claude API Error] Response data:', error.response.data);
         console.error('[Claude API Error] Response status:', error.response.status);
+        
+        // Handle 529 Overloaded error specifically
+        if (error.response.status === 529) {
+          const overloadedError = new Error('Anthropic Claude service is temporarily overloaded. This usually means:\n• Too many requests sent too quickly\n• API usage limits exceeded\n• Service experiencing high demand\n\nSuggestions:\n• Wait 30-60 seconds before retrying\n• Try fewer models simultaneously\n• Use a different Claude model (e.g., Claude 3 Haiku instead of Opus)\n• Check your API usage limits at console.anthropic.com');
+          overloadedError.code = 'ANTHROPIC_OVERLOADED';
+          overloadedError.status = 529;
+          throw overloadedError;
+        }
+        
+        // Handle 429 Rate Limit error
+        if (error.response.status === 429) {
+          const rateLimitError = new Error('Anthropic Claude rate limit exceeded. Please wait before making more requests.\n\nSuggestions:\n• Wait 60 seconds before retrying\n• Reduce the number of simultaneous requests\n• Check your tier limits at console.anthropic.com');
+          rateLimitError.code = 'ANTHROPIC_RATE_LIMIT';
+          rateLimitError.status = 429;
+          throw rateLimitError;
+        }
+        
+        // Handle 400 Bad Request
+        if (error.response.status === 400) {
+          const badRequestError = new Error(`Claude API Bad Request: ${error.response.data?.error?.message || 'Invalid request parameters'}`);
+          badRequestError.code = 'ANTHROPIC_BAD_REQUEST';
+          badRequestError.status = 400;
+          throw badRequestError;
+        }
+        
+        // Handle 401 Unauthorized
+        if (error.response.status === 401) {
+          const authError = new Error('Claude API Unauthorized: Invalid or missing API key. Please check your Anthropic API key.');
+          authError.code = 'ANTHROPIC_UNAUTHORIZED';
+          authError.status = 401;
+          throw authError;
+        }
+        
+        // Handle other HTTP errors
+        const httpError = new Error(`Claude API Error (${error.response.status}): ${error.response.data?.error?.message || error.message}`);
+        httpError.code = 'ANTHROPIC_HTTP_ERROR';
+        httpError.status = error.response.status;
+        throw httpError;
       }
-      throw error;
+      
+      // Handle network errors
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        const networkError = new Error('Cannot connect to Anthropic API. Please check your internet connection.');
+        networkError.code = 'NETWORK_ERROR';
+        throw networkError;
+      }
+      
+      // Re-throw other errors with additional context
+      const enhancedError = new Error(`Claude API Error: ${error.message}`);
+      enhancedError.code = error.code || 'ANTHROPIC_UNKNOWN_ERROR';
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
   }
 }
@@ -660,8 +768,6 @@ ${haystack}`;
 
     // Run tests for all models in parallel
     const testPromises = models.map(async (modelConfig) => {
-      const startTime = Date.now();
-      
       try {
         console.log(`🎯 Testing model ${modelConfig.modelId} with temp=${modelConfig.temperature}, maxTokens=${modelConfig.maxTokens}`);
         
@@ -674,7 +780,7 @@ ${haystack}`;
           role: 'user'
         }];
 
-        // Pass model configuration to the AI manager
+        // Pass model configuration to the AI manager and get response with accurate timing
         const response = await this.aiManager.generateResponseWithConfig(
           modelConfig.modelId, 
           messages, 
@@ -685,7 +791,9 @@ ${haystack}`;
           }
         );
         
-        const responseTime = Date.now() - startTime;
+        // Use the actual API call timing, not total time including retries
+        const responseTime = this.aiManager.lastApiCallTime || 0;
+        console.log(`⏱️ Model ${modelConfig.modelId} actual API response time: ${responseTime}ms`);
         
         // Check if exact match text appears in the response (case-insensitive)
         const foundNeedle = this.checkExactMatch(response, exactMatch);

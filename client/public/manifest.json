@@ -1,7 +1,12 @@
 {
-  "short_name": "Multi-AI Chat",
-  "name": "Multi-AI Chat Application",
+  "short_name": "Hay is for LLMs",
+  "name": "Hay is for LLMs - AI Testing Platform",
   "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
@@ -10,6 +15,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#4CAF50",
+  "background_color": "#F5F5DC"
 } 

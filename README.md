@@ -15,6 +15,15 @@
 
 </div>
 
+## 🔒 **SECURITY FIRST**
+
+⚠️ **IMPORTANT**: This application handles sensitive API keys. Please read our [Security Guide](SECURITY.md) before setup.
+
+- 🔐 **Never commit API keys** to version control
+- 🔐 **Use environment variables** for production
+- 🔐 **Monitor your API usage** and costs
+- 🔐 **Follow the security checklist** in SECURITY.md
+
 ## 🎯 Overview
 
 **Hay is for LLMs** is a revolutionary needle-in-the-haystack testing system featuring a retro farming terminal aesthetic. Test multiple AI language models simultaneously to evaluate their ability to find specific information ("needles") within large text contexts ("haystacks").

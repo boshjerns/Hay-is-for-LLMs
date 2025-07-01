@@ -10,10 +10,16 @@
     "build": "cd client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["ai", "chat", "openai", "gemini", "claude"],
+  "keywords": [
+    "ai",
+    "chat",
+    "openai",
+    "gemini",
+    "claude"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
-} 
+}
