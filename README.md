@@ -35,11 +35,12 @@ Our system provides comprehensive testing across 14 different AI models from lea
 - **Real-time results** with WebSocket communication
 - **Model-specific configuration** with expandable cards
 
-### 📊 **Enhanced Metrics**
+### 📊 **Enhanced Metrics & Accurate Detection**
+- **Exact Match Detection** - Define precise text for 100% accurate FOUND/NOT FOUND results
 - **Response time** in milliseconds
 - **Word count** and **character count**
 - **Sentence count** and **reading time** estimates
-- **Success/failure indicators** for needle detection
+- **Reliable success/failure indicators** based on exact string matching
 - **Copy-to-clipboard** functionality
 
 ### ⚙️ **Advanced Controls**
@@ -125,11 +126,14 @@ Our system provides comprehensive testing across 14 different AI models from lea
    - Or upload a text file using the "UPLOAD FILE" button
 4. **Define your needle**:
    - Enter the specific information you want models to find
-5. **Select models** for testing using the checkboxes
-6. **Configure settings**:
+5. **Set exact match criteria**:
+   - Enter the exact text that should appear in correct responses
+   - This enables accurate FOUND/NOT FOUND detection
+6. **Select models** for testing using the checkboxes
+7. **Configure settings**:
    - Use Master Controls to apply settings to all models
    - Expand individual cards for model-specific configuration
-7. **Run the test** and watch real-time results!
+8. **Run the test** and watch real-time results with accurate detection!
 
 ### Master Controls
 
